@@ -1,0 +1,34 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Flutter: Debug main.dart",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "flutterMode": "debug",
+      "preLaunchTask": "project warm-up"
+    },
+    {
+      "name": "Flutter: Profile main.dart",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "flutterMode": "profile",
+      "preLaunchTask": "flutter pub get"
+    },
+    {
+      "name": "Flutter: Release main.dart",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "flutterMode": "release",
+      "preLaunchTask": "flutter pub get"
+    },
+    {
+      "name": "Flutter: Attach to Device",
+      "type": "dart",
+      "request": "attach"
+    }
+  ]
+}

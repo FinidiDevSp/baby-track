@@ -1,0 +1,43 @@
+{
+  "editor.formatOnSaveMode": "modificationsIfAvailable",
+  "files.exclude": {
+    "**/.dart_tool": true,
+    "**/build": true
+  },
+  "files.watcherExclude": {
+    "**/.dart_tool/**": true,
+    "**/build/**": true
+  },
+  "search.exclude": {
+    "**/.dart_tool": true,
+    "**/build": true
+  },
+  "dart.lineLength": 100,
+  "dart.runPubGetOnPubspecChanges": true,
+  "dart.showTodos": true,
+  "dart.flutterTrackWidgetCreation": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": true
+  },
+  "editor.formatOnSave": true,
+  "editor.rulers": [
+    100
+  ],
+  "[dart]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll": true,
+      "source.organizeImports": true
+    },
+    "editor.defaultFormatter": "Dart-Code.dart-code",
+    "editor.formatOnSave": true,
+    "editor.rulers": [
+      100
+    ]
+  },
+  "[yaml]": {
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2,
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  }
+}
+

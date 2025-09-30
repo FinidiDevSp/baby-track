@@ -1,0 +1,97 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "project warm-up",
+      "dependsOn": [
+        "flutter pub get",
+        "flutter analyze"
+      ],
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "flutter pub get",
+      "type": "shell",
+      "command": "flutter",
+      "args": [
+        "pub",
+        "get"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "flutter analyze",
+      "type": "shell",
+      "command": "flutter",
+      "args": [
+        "analyze"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "dart format check",
+      "type": "shell",
+      "command": "dart",
+      "args": [
+        "format",
+        "--set-exit-if-changed",
+        "."
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "flutter test",
+      "type": "shell",
+      "command": "flutter",
+      "args": [
+        "test"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "flutter test --coverage",
+      "type": "shell",
+      "command": "flutter",
+      "args": [
+        "test",
+        "--coverage"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": []
+    }
+  ]
+}
