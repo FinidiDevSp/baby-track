@@ -270,20 +270,18 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    baby.name,
-                    style: const TextStyle(
+                    'Panel del bebé',
+                    style: textTheme.titleMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
-                      fontSize: 18,
                       letterSpacing: 0.5,
                     ),
                   ),
                   Text(
-                    'Edad: ${_formatAge()}',
-                    style: TextStyle(
+                    'Organiza sus cuidados diarios',
+                    style: textTheme.bodySmall?.copyWith(
                       color: Colors.white.withOpacity(0.85),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -536,24 +534,6 @@ class _BabySummaryCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-            Divider(color: colorScheme.primary.withOpacity(0.2)),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Icon(Icons.info_outline_rounded, color: colorScheme.primary, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Perfil creado el ${DateFormat('dd/MM/yyyy').format(baby.createdAt)}',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[700],
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -660,7 +640,7 @@ class _BabyActionCarousel extends StatelessWidget {
     }
 
     return SizedBox(
-      height: 150,
+      height: 180,
       child: PageView.builder(
         controller: controller,
         padEnds: false,
@@ -689,6 +669,7 @@ class _BabyActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(24),
@@ -699,6 +680,9 @@ class _BabyActionCard extends StatelessWidget {
             colors: data.backgroundColors,
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
+          ),
+          border: Border.all(
+            color: colorScheme.outlineVariant.withOpacity(0.6),
           ),
           boxShadow: [
             BoxShadow(
