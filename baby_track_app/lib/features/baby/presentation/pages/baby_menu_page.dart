@@ -1,19 +1,86 @@
 import 'dart:io';
 
 import 'package:baby_track_app/features/baby/domain/models/baby.dart';
+import 'package:baby_track_app/features/baby/domain/models/baby_daily_log.dart';
+import 'package:baby_track_app/features/baby/infrastructure/baby_daily_log_repository_impl.dart';
 import 'package:baby_track_app/features/baby/presentation/pages/baby_daily_log_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-class BabyMenuPage extends StatelessWidget {
+class BabyMenuPage extends StatefulWidget {
   const BabyMenuPage({super.key, required this.baby});
 
   final Baby baby;
 
+  @override
+  State<BabyMenuPage> createState() => _BabyMenuPageState();
+}
+
+class _BabyMenuPageState extends State<BabyMenuPage> {
+  final BabyDailyLogRepositoryImpl _dailyLogRepository = BabyDailyLogRepositoryImpl();
+  final PageController _actionPageController = PageController(viewportFraction: 0.72);
+
+  bool _isLoadingStats = false;
+  List<BabyDailyLog> _todayLogs = const [];
+  List<BabyDailyLog> _recentLogs = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+  }
+
+  @override
+  void dispose() {
+    _actionPageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadStats() async {
+    if (!mounted) {
+      return;
+    }
+
+    if (widget.baby.id == null) {
+      setState(() {
+        _todayLogs = const [];
+        _recentLogs = const [];
+        _isLoadingStats = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingStats = true;
+    });
+
+    try {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final todayLogs = await _dailyLogRepository.getLogsForBabyOnDate(widget.baby.id!, today);
+      final recentLogs =
+          await _dailyLogRepository.getRecentLogsForBaby(widget.baby.id!, limit: 60);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _todayLogs = todayLogs;
+        _recentLogs = recentLogs;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingStats = false;
+        });
+      }
+    }
+  }
+
   LinearGradient _buildAppBarGradient(ColorScheme colorScheme) {
     final blendedColor =
-        Color.lerp(colorScheme.primary, colorScheme.secondary, 0.5) ??
-            colorScheme.primary;
+        Color.lerp(colorScheme.primary, colorScheme.secondary, 0.5) ?? colorScheme.primary;
 
     return LinearGradient(
       colors: [colorScheme.primary, blendedColor, colorScheme.secondary],
@@ -24,7 +91,7 @@ class BabyMenuPage extends StatelessWidget {
 
   String _formatAge() {
     final now = DateTime.now();
-    final difference = now.difference(baby.birthDate);
+    final difference = now.difference(widget.baby.birthDate);
 
     if (difference.inDays < 30) {
       return '${difference.inDays} ${difference.inDays == 1 ? 'día' : 'días'}';
@@ -43,19 +110,8 @@ class BabyMenuPage extends StatelessWidget {
     return '$years ${years == 1 ? 'año' : 'años'} y $remainingMonths ${remainingMonths == 1 ? 'mes' : 'meses'}';
   }
 
-  String _genderLabel() {
-    switch (baby.gender) {
-      case 'M':
-        return 'Niño';
-      case 'F':
-        return 'Niña';
-      default:
-        return 'Sin especificar';
-    }
-  }
-
   Color _genderColor(ColorScheme colorScheme) {
-    switch (baby.gender) {
+    switch (widget.baby.gender) {
       case 'M':
         return colorScheme.primary;
       case 'F':
@@ -76,16 +132,78 @@ class BabyMenuPage extends StatelessWidget {
       );
   }
 
+  BabyDailyLog? _findLastLog(bool Function(BabyDailyLog) predicate) {
+    for (final log in _recentLogs) {
+      if (predicate(log)) {
+        return log;
+      }
+    }
+    return null;
+  }
+
+  String _timeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 1) {
+      return 'hace instantes';
+    }
+
+    if (difference.inMinutes < 60) {
+      return 'hace ${difference.inMinutes} min';
+    }
+
+    if (difference.inHours < 24) {
+      final hours = difference.inHours;
+      final minutes = difference.inMinutes.remainder(60);
+      if (minutes == 0) {
+        return 'hace ${hours} h';
+      }
+      return 'hace ${hours} h ${minutes} min';
+    }
+
+    final days = difference.inDays;
+    if (days == 1) {
+      return 'hace 1 día';
+    }
+    return 'hace $days días';
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  String _formatEventSubtitle(BabyDailyLog? log, {String? detail}) {
+    if (log == null) {
+      return 'Aún no hay registros.';
+    }
+
+    final base = _timeAgo(log.loggedAt);
+    final now = DateTime.now();
+    final dateLabel = _isSameDay(now, log.loggedAt)
+        ? DateFormat('HH:mm').format(log.loggedAt)
+        : DateFormat('dd/MM HH:mm').format(log.loggedAt);
+
+    if (detail != null && detail.isNotEmpty) {
+      return '$base · $dateLabel · $detail';
+    }
+    return '$base · $dateLabel';
+  }
+
+  String _formatCountLabel(int count, {required String singular, required String plural}) {
+    return '$count ${count == 1 ? singular : plural}';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final baby = widget.baby;
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     final actions = [
       _BabyActionCardData(
-        title: 'REGISTRO',
-        description:
-            'Anota tomas, pañales, siestas y observaciones importantes del día a día.',
+        title: 'Registro',
+        description: 'Añade tomas, pañales y notas del día a día.',
         icon: Icons.edit_note_rounded,
         accentColor: colorScheme.primary,
         backgroundColors: [
@@ -99,8 +217,8 @@ class BabyMenuPage extends StatelessWidget {
         ),
       ),
       _BabyActionCardData(
-        title: 'HISTORIAL',
-        description: 'Revisa los registros anteriores y detecta patrones fácilmente.',
+        title: 'Historial',
+        description: 'Pronto podrás consultar el historial completo.',
         icon: Icons.history_rounded,
         accentColor: colorScheme.secondary,
         backgroundColors: [
@@ -137,13 +255,13 @@ class BabyMenuPage extends StatelessWidget {
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.white.withOpacity(0.3)),
               ),
-              child: const Icon(Icons.child_friendly_rounded, color: Colors.white, size: 24),
+              child: const Icon(Icons.child_friendly_rounded, color: Colors.white, size: 22),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -201,64 +319,152 @@ class BabyMenuPage extends StatelessWidget {
                   color: colorScheme.primary.withOpacity(0.18),
                 ),
               ),
-              SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _BabySummaryCard(
-                      baby: baby,
-                      colorScheme: colorScheme,
-                      textTheme: textTheme,
-                      genderLabel: _genderLabel(),
-                      genderColor: _genderColor(colorScheme),
-                      ageLabel: _formatAge(),
-                    ),
-                    const SizedBox(height: 32),
-                    Text(
-                      'Acciones rápidas',
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: colorScheme.primary,
+              RefreshIndicator(
+                onRefresh: _loadStats,
+                displacement: 32,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _BabySummaryCard(
+                        baby: baby,
+                        colorScheme: colorScheme,
+                        textTheme: textTheme,
+                        genderColor: _genderColor(colorScheme),
+                        ageLabel: _formatAge(),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Selecciona una opción para gestionar la información de ${baby.name}.',
-                      style: textTheme.bodyMedium?.copyWith(height: 1.5),
-                    ),
-                    const SizedBox(height: 24),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final isWide = constraints.maxWidth >= 600;
-                        final cardWidth = isWide
-                            ? (constraints.maxWidth - 16) / 2
-                            : constraints.maxWidth;
-                        return Wrap(
-                          spacing: 16,
-                          runSpacing: 16,
-                          children: actions
-                              .map(
-                                (action) => SizedBox(
-                                  width: cardWidth,
-                                  child: _BabyActionCard(
-                                    data: action,
-                                    onTap: action.onTap ??
-                                        () => _showComingSoon(context, action.title),
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        );
-                      },
-                    ),
-                  ],
+                      const SizedBox(height: 28),
+                      _BabyActionCarousel(
+                        controller: _actionPageController,
+                        actions: actions,
+                        onUnavailableAction: (action) =>
+                            _showComingSoon(context, action.title),
+                      ),
+                      const SizedBox(height: 28),
+                      _buildStatsSection(colorScheme, textTheme),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildStatsSection(ColorScheme colorScheme, TextTheme textTheme) {
+    if (widget.baby.id == null) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: colorScheme.outlineVariant),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline_rounded, color: colorScheme.outline),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                'Guarda primero el perfil de ${widget.baby.name} para comenzar a ver estadísticas.',
+                style: textTheme.bodyMedium,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_isLoadingStats) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        alignment: Alignment.center,
+        child: const CircularProgressIndicator(),
+      );
+    }
+
+    final lastIntake = _findLastLog((log) => (log.intakeMl ?? 0) > 0);
+    final lastPoop = _findLastLog((log) => log.didPoop);
+    final lastShower = _findLastLog((log) => log.showered);
+
+    String? intakeDetail;
+    if (lastIntake != null && lastIntake.intakeMl != null) {
+      intakeDetail = '${lastIntake.intakeMl} ml';
+    }
+
+    final todayIntakes =
+        _todayLogs.where((log) => (log.intakeMl ?? 0) > 0).toList(growable: false);
+    final feedCount = todayIntakes.length;
+    final totalIntake = todayIntakes.fold<int>(0, (sum, log) => sum + (log.intakeMl ?? 0));
+    final poopCount = _todayLogs.where((log) => log.didPoop).length;
+    final showerCount = _todayLogs.where((log) => log.showered).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _BabyStatsCard(
+          title: 'Última actividad',
+          children: [
+            _BabyStatTile(
+              icon: Icons.local_drink_rounded,
+              iconColor: colorScheme.primary,
+              title: 'Tomas',
+              subtitle: _formatEventSubtitle(lastIntake, detail: intakeDetail),
+            ),
+            const SizedBox(height: 12),
+            _BabyStatTile(
+              icon: Icons.baby_changing_station_rounded,
+              iconColor: colorScheme.secondary,
+              title: 'Pañales',
+              subtitle: _formatEventSubtitle(lastPoop),
+            ),
+            const SizedBox(height: 12),
+            _BabyStatTile(
+              icon: Icons.bathtub_rounded,
+              iconColor: colorScheme.tertiary,
+              title: 'Baños',
+              subtitle: _formatEventSubtitle(lastShower),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _BabyStatsCard(
+          title: 'Resumen de hoy',
+          children: [
+            _BabyStatTile(
+              icon: Icons.local_cafe_rounded,
+              iconColor: colorScheme.primary,
+              title: 'Tomas registradas',
+              subtitle: feedCount == 0
+                  ? 'Aún no hay tomas registradas hoy.'
+                  : '${_formatCountLabel(feedCount, singular: 'toma', plural: 'tomas')} · ${totalIntake} ml',
+            ),
+            const SizedBox(height: 12),
+            _BabyStatTile(
+              icon: Icons.eco_rounded,
+              iconColor: colorScheme.secondary,
+              title: 'Pañales sucios',
+              subtitle: poopCount == 0
+                  ? 'Sin pañales registrados por ahora.'
+                  : _formatCountLabel(poopCount, singular: 'vez', plural: 'veces'),
+            ),
+            const SizedBox(height: 12),
+            _BabyStatTile(
+              icon: Icons.water_drop_rounded,
+              iconColor: colorScheme.tertiary,
+              title: 'Baños',
+              subtitle: showerCount == 0
+                  ? 'Sin baños registrados hoy.'
+                  : _formatCountLabel(showerCount, singular: 'baño', plural: 'baños'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -268,7 +474,6 @@ class _BabySummaryCard extends StatelessWidget {
     required this.baby,
     required this.colorScheme,
     required this.textTheme,
-    required this.genderLabel,
     required this.genderColor,
     required this.ageLabel,
   });
@@ -276,7 +481,6 @@ class _BabySummaryCard extends StatelessWidget {
   final Baby baby;
   final ColorScheme colorScheme;
   final TextTheme textTheme;
-  final String genderLabel;
   final Color genderColor;
   final String ageLabel;
 
@@ -308,7 +512,6 @@ class _BabySummaryCard extends StatelessWidget {
               children: [
                 _BabyAvatar(
                   baby: baby,
-                  colorScheme: colorScheme,
                   genderColor: genderColor,
                 ),
                 const SizedBox(width: 20),
@@ -323,24 +526,10 @@ class _BabySummaryCard extends StatelessWidget {
                           color: colorScheme.primary,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _InfoPill(
-                            icon: Icons.cake_outlined,
-                            label: DateFormat('dd/MM/yyyy').format(baby.birthDate),
-                          ),
-                          _InfoPill(
-                            icon: Icons.calendar_month_rounded,
-                            label: ageLabel,
-                          ),
-                          _InfoPill(
-                            icon: Icons.waving_hand_rounded,
-                            label: genderLabel,
-                          ),
-                        ],
+                      const SizedBox(height: 12),
+                      _InfoPill(
+                        icon: Icons.calendar_month_rounded,
+                        label: ageLabel,
                       ),
                     ],
                   ),
@@ -375,19 +564,17 @@ class _BabySummaryCard extends StatelessWidget {
 class _BabyAvatar extends StatelessWidget {
   const _BabyAvatar({
     required this.baby,
-    required this.colorScheme,
     required this.genderColor,
   });
 
   final Baby baby;
-  final ColorScheme colorScheme;
   final Color genderColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 80,
-      height: 80,
+      width: 68,
+      height: 68,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: genderColor.withOpacity(0.15),
@@ -405,7 +592,7 @@ class _BabyAvatar extends StatelessWidget {
                           ? Icons.girl_rounded
                           : Icons.child_care,
                   color: genderColor,
-                  size: 40,
+                  size: 36,
                 ),
               )
             : Icon(
@@ -415,7 +602,7 @@ class _BabyAvatar extends StatelessWidget {
                         ? Icons.girl_rounded
                         : Icons.child_care,
                 color: genderColor,
-                size: 40,
+                size: 36,
               ),
       ),
     );
@@ -455,6 +642,44 @@ class _InfoPill extends StatelessWidget {
   }
 }
 
+class _BabyActionCarousel extends StatelessWidget {
+  const _BabyActionCarousel({
+    required this.actions,
+    required this.controller,
+    required this.onUnavailableAction,
+  });
+
+  final List<_BabyActionCardData> actions;
+  final PageController controller;
+  final void Function(_BabyActionCardData action) onUnavailableAction;
+
+  @override
+  Widget build(BuildContext context) {
+    if (actions.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return SizedBox(
+      height: 150,
+      child: PageView.builder(
+        controller: controller,
+        padEnds: false,
+        itemCount: actions.length,
+        itemBuilder: (context, index) {
+          final action = actions[index];
+          return Padding(
+            padding: EdgeInsets.only(right: index == actions.length - 1 ? 0 : 16),
+            child: _BabyActionCard(
+              data: action,
+              onTap: action.onTap ?? () => onUnavailableAction(action),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 class _BabyActionCard extends StatelessWidget {
   const _BabyActionCard({required this.data, required this.onTap});
 
@@ -463,73 +688,150 @@ class _BabyActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            gradient: LinearGradient(
-              colors: [
-                data.backgroundColors.first,
-                data.backgroundColors.last,
-                Colors.white,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 20,
-                offset: const Offset(0, 12),
-              ),
-            ],
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: Ink(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(
+            colors: data.backgroundColors,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 20,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: data.accentColor.withOpacity(0.18),
+                  color: data.accentColor.withOpacity(0.16),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(data.icon, color: data.accentColor, size: 28),
+                child: Icon(data.icon, color: data.accentColor, size: 26),
               ),
-              const SizedBox(height: 20),
+              const Spacer(),
               Text(
                 data.title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               Text(
                 data.description,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Text(
-                    'Abrir',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: data.accentColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(Icons.arrow_forward_rounded, color: data.accentColor, size: 18),
-                ],
+                style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _BabyStatsCard extends StatelessWidget {
+  const _BabyStatsCard({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _BabyStatTile extends StatelessWidget {
+  const _BabyStatTile({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.14),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: iconColor, size: 22),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurface.withOpacity(0.7),
+                      height: 1.4,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
