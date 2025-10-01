@@ -28,10 +28,7 @@ class BabyDailyLogRepositoryImpl implements BabyDailyLogRepository {
       updatedAt: now,
     );
 
-    final id = await db.insert(
-      'baby_daily_logs',
-      logToInsert.toJson()..remove('id'),
-    );
+    final id = await db.insert('baby_daily_logs', logToInsert.toJson()..remove('id'));
 
     return logToInsert.copyWith(id: id);
   }
@@ -61,6 +58,20 @@ class BabyDailyLogRepositoryImpl implements BabyDailyLogRepository {
       whereArgs: [babyId],
       orderBy: 'logged_at DESC',
       limit: limit,
+    );
+
+    return result.map(BabyDailyLog.fromJson).toList();
+  }
+
+  @override
+  Future<List<BabyDailyLog>> getAllLogsForBaby(int babyId) async {
+    final db = await _databaseHelper.database;
+
+    final result = await db.query(
+      'baby_daily_logs',
+      where: 'baby_id = ?',
+      whereArgs: [babyId],
+      orderBy: 'log_day DESC, logged_at DESC',
     );
 
     return result.map(BabyDailyLog.fromJson).toList();

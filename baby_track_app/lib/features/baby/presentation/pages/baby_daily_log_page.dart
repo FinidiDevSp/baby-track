@@ -104,9 +104,7 @@ class _BabyDailyLogPageState extends State<BabyDailyLogPage> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(
-            content: Text('Debes guardar al bebé antes de crear registros diarios.'),
-          ),
+          const SnackBar(content: Text('Debes guardar al bebé antes de crear registros diarios.')),
         );
       return;
     }
@@ -168,10 +166,7 @@ class _BabyDailyLogPageState extends State<BabyDailyLogPage> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          SnackBar(
-            content: Text('Error al guardar el registro: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error al guardar el registro: $e'), backgroundColor: Colors.red),
         );
     } finally {
       if (mounted) {
@@ -209,9 +204,7 @@ class _BabyDailyLogPageState extends State<BabyDailyLogPage> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Registro diario de ${widget.baby.name}'),
-      ),
+      appBar: AppBar(title: Text('Registro diario de ${widget.baby.name}')),
       body: SafeArea(
         child: widget.baby.id == null
             ? Center(
@@ -237,13 +230,6 @@ class _BabyDailyLogPageState extends State<BabyDailyLogPage> {
                     ),
                     const SizedBox(height: 24),
                     _buildFormCard(colorScheme, textTheme),
-                    const SizedBox(height: 32),
-                    Text(
-                      'Registros guardados',
-                      style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildLogsSection(colorScheme, textTheme),
                   ],
                 ),
               ),
@@ -281,9 +267,7 @@ class _BabyDailyLogPageState extends State<BabyDailyLogPage> {
                 subtitle: 'Introduce los mililitros ingeridos si aplica.',
                 child: TextFormField(
                   controller: _mlController,
-                  decoration: const InputDecoration(
-                    hintText: 'Ej. 120',
-                  ),
+                  decoration: const InputDecoration(hintText: 'Ej. 120'),
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   validator: (value) {
@@ -351,43 +335,6 @@ class _BabyDailyLogPageState extends State<BabyDailyLogPage> {
       ),
     );
   }
-
-  Widget _buildLogsSection(ColorScheme colorScheme, TextTheme textTheme) {
-    if (_isLoadingLogs) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_logs.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: colorScheme.outlineVariant),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.hourglass_empty_rounded, color: colorScheme.outline),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                'Aún no hay registros para este día. ¡Empieza añadiendo uno!',
-                style: textTheme.bodyMedium,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      children: _logs
-          .map((log) => Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: _DailyLogCard(log: log, colorScheme: colorScheme, textTheme: textTheme),
-              ))
-          .toList(),
-    );
-  }
 }
 
 class _DayNavigator extends StatelessWidget {
@@ -409,10 +356,7 @@ class _DayNavigator extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         gradient: LinearGradient(
-          colors: [
-            colorScheme.primary.withOpacity(0.12),
-            Colors.white,
-          ],
+          colors: [colorScheme.primary.withOpacity(0.12), Colors.white],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -451,10 +395,7 @@ class _CircleButton extends StatelessWidget {
       child: InkWell(
         onTap: onPressed,
         customBorder: const CircleBorder(),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Icon(icon, size: 26),
-        ),
+        child: Padding(padding: const EdgeInsets.all(8), child: Icon(icon, size: 26)),
       ),
     );
   }
@@ -501,32 +442,28 @@ class _DailyLogCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final chips = <Widget>[];
     if (log.intakeMl != null) {
-      chips.add(_InfoChip(
-        icon: Icons.local_drink_rounded,
-        label: 'Toma: ${log.intakeMl} ml',
-        color: colorScheme.primary,
-      ));
+      chips.add(
+        _InfoChip(
+          icon: Icons.local_drink_rounded,
+          label: 'Toma: ${log.intakeMl} ml',
+          color: colorScheme.primary,
+        ),
+      );
     }
     if (log.didPoop) {
-      chips.add(_InfoChip(
-        icon: Icons.baby_changing_station_rounded,
-        label: 'Pañal sucio',
-        color: colorScheme.secondary,
-      ));
+      chips.add(
+        _InfoChip(
+          icon: Icons.baby_changing_station_rounded,
+          label: 'Pañal sucio',
+          color: colorScheme.secondary,
+        ),
+      );
     }
     if (log.showered) {
-      chips.add(_InfoChip(
-        icon: Icons.shower_rounded,
-        label: 'Ducha',
-        color: colorScheme.tertiary,
-      ));
+      chips.add(_InfoChip(icon: Icons.shower_rounded, label: 'Ducha', color: colorScheme.tertiary));
     }
     if (log.vomited) {
-      chips.add(_InfoChip(
-        icon: Icons.sick_rounded,
-        label: 'Vómito',
-        color: colorScheme.error,
-      ));
+      chips.add(_InfoChip(icon: Icons.sick_rounded, label: 'Vómito', color: colorScheme.error));
     }
 
     return Card(
@@ -555,18 +492,10 @@ class _DailyLogCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            if (chips.isNotEmpty)
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: chips,
-              ),
+            if (chips.isNotEmpty) Wrap(spacing: 12, runSpacing: 12, children: chips),
             if (log.notes != null && log.notes!.isNotEmpty) ...[
               if (chips.isNotEmpty) const SizedBox(height: 16),
-              Text(
-                log.notes!,
-                style: textTheme.bodyMedium,
-              ),
+              Text(log.notes!, style: textTheme.bodyMedium),
             ],
           ],
         ),
@@ -597,10 +526,9 @@ class _InfoChip extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: color, fontWeight: FontWeight.w600),
           ),
         ],
       ),
