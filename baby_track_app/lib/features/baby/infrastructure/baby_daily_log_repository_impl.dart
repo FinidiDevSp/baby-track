@@ -50,4 +50,19 @@ class BabyDailyLogRepositoryImpl implements BabyDailyLogRepository {
 
     return result.map(BabyDailyLog.fromJson).toList();
   }
+
+  @override
+  Future<List<BabyDailyLog>> getRecentLogsForBaby(int babyId, {int limit = 20}) async {
+    final db = await _databaseHelper.database;
+
+    final result = await db.query(
+      'baby_daily_logs',
+      where: 'baby_id = ?',
+      whereArgs: [babyId],
+      orderBy: 'logged_at DESC',
+      limit: limit,
+    );
+
+    return result.map(BabyDailyLog.fromJson).toList();
+  }
 }
