@@ -203,28 +203,24 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
     final actions = [
       _BabyActionCardData(
         title: 'Registro',
-        description: 'Añade tomas, pañales y notas del día a día.',
         icon: Icons.edit_note_rounded,
         accentColor: colorScheme.primary,
-        backgroundColors: [
-          colorScheme.primary.withOpacity(0.18),
-          colorScheme.primary.withOpacity(0.08),
-        ],
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => BabyDailyLogPage(baby: baby),
-          ),
-        ),
+        onTap: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => BabyDailyLogPage(baby: baby),
+            ),
+          );
+          if (!mounted) {
+            return;
+          }
+          await _loadStats();
+        },
       ),
       _BabyActionCardData(
         title: 'Historial',
-        description: 'Pronto podrás consultar el historial completo.',
         icon: Icons.history_rounded,
         accentColor: colorScheme.secondary,
-        backgroundColors: [
-          colorScheme.secondary.withOpacity(0.18),
-          colorScheme.secondary.withOpacity(0.08),
-        ],
       ),
     ];
 
@@ -388,6 +384,7 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
 
     final lastIntake = _findLastLog((log) => (log.intakeMl ?? 0) > 0);
     final lastPoop = _findLastLog((log) => log.didPoop);
+    final lastVomit = _findLastLog((log) => log.vomited);
     final lastShower = _findLastLog((log) => log.showered);
 
     String? intakeDetail;
@@ -400,6 +397,7 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
     final feedCount = todayIntakes.length;
     final totalIntake = todayIntakes.fold<int>(0, (sum, log) => sum + (log.intakeMl ?? 0));
     final poopCount = _todayLogs.where((log) => log.didPoop).length;
+    final vomitCount = _todayLogs.where((log) => log.vomited).length;
     final showerCount = _todayLogs.where((log) => log.showered).length;
 
     return Column(
@@ -420,6 +418,13 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
               iconColor: colorScheme.secondary,
               title: 'Pañales',
               subtitle: _formatEventSubtitle(lastPoop),
+            ),
+            const SizedBox(height: 12),
+            _BabyStatTile(
+              icon: Icons.sick_rounded,
+              iconColor: colorScheme.error,
+              title: 'Vómito',
+              subtitle: _formatEventSubtitle(lastVomit),
             ),
             const SizedBox(height: 12),
             _BabyStatTile(
@@ -450,6 +455,15 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
               subtitle: poopCount == 0
                   ? 'Sin pañales registrados por ahora.'
                   : _formatCountLabel(poopCount, singular: 'vez', plural: 'veces'),
+            ),
+            const SizedBox(height: 12),
+            _BabyStatTile(
+              icon: Icons.sick_rounded,
+              iconColor: colorScheme.error,
+              title: 'Vómitos',
+              subtitle: vomitCount == 0
+                  ? 'Sin vómitos registrados hoy.'
+                  : _formatCountLabel(vomitCount, singular: 'vez', plural: 'veces'),
             ),
             const SizedBox(height: 12),
             _BabyStatTile(
@@ -670,6 +684,12 @@ class _BabyActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final surfaceVariant = colorScheme.surfaceVariant;
+    final baseColor = Color.alphaBlend(Colors.black.withOpacity(0.22), surfaceVariant);
+    final gradientColors = [
+      Color.alphaBlend(data.accentColor.withOpacity(0.18), baseColor),
+      Color.alphaBlend(data.accentColor.withOpacity(0.08), baseColor),
+    ];
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(24),
@@ -677,7 +697,7 @@ class _BabyActionCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
           gradient: LinearGradient(
-            colors: data.backgroundColors,
+            colors: gradientColors,
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -712,13 +732,15 @@ class _BabyActionCard extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                data.description,
-                style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+              if (data.description != null && data.description!.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  data.description!,
+                  style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ],
           ),
         ),
@@ -823,18 +845,16 @@ class _BabyStatTile extends StatelessWidget {
 class _BabyActionCardData {
   const _BabyActionCardData({
     required this.title,
-    required this.description,
+    this.description,
     required this.icon,
     required this.accentColor,
-    required this.backgroundColors,
     this.onTap,
   });
 
   final String title;
-  final String description;
+  final String? description;
   final IconData icon;
   final Color accentColor;
-  final List<Color> backgroundColors;
   final VoidCallback? onTap;
 }
 
