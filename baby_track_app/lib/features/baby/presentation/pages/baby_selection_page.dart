@@ -2,6 +2,7 @@ import 'package:baby_track_app/features/baby/domain/models/baby.dart';
 import 'package:baby_track_app/features/baby/infrastructure/baby_repository_impl.dart';
 import 'package:baby_track_app/features/baby/presentation/pages/baby_list_page.dart';
 import 'package:baby_track_app/features/baby/presentation/pages/baby_registration_page.dart';
+import 'package:baby_track_app/features/settings/presentation/pages/settings_page.dart';
 import 'package:flutter/material.dart';
 
 class BabySelectionPage extends StatefulWidget {
@@ -41,15 +42,14 @@ class _BabySelectionPageState extends State<BabySelectionPage> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      backgroundColor: colorScheme.surface,
+      appBar: _buildCustomAppBar(context, colorScheme),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFF4F0),
-              Color(0xFFFFFDF7),
-            ],
+            colors: [colorScheme.surface, colorScheme.surface.withOpacity(0.8)],
           ),
         ),
         child: SafeArea(
@@ -58,37 +58,26 @@ class _BabySelectionPageState extends State<BabySelectionPage> {
               Positioned(
                 top: -60,
                 right: -20,
-                child: _DecorativeBubble(
-                  size: 180,
-                  color: colorScheme.secondary.withOpacity(0.25),
-                ),
+                child: _DecorativeBubble(size: 180, color: colorScheme.secondary.withOpacity(0.25)),
               ),
               Positioned(
                 bottom: -40,
                 left: -30,
-                child: _DecorativeBubble(
-                  size: 140,
-                  color: colorScheme.primary.withOpacity(0.18),
-                ),
+                child: _DecorativeBubble(size: 140, color: colorScheme.primary.withOpacity(0.18)),
               ),
               Positioned(
                 bottom: 100,
                 right: 24,
-                child: _DecorativeBubble(
-                  size: 70,
-                  color: colorScheme.secondary.withOpacity(0.2),
-                ),
+                child: _DecorativeBubble(size: 70, color: colorScheme.secondary.withOpacity(0.2)),
               ),
               SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                padding: const EdgeInsets.only(left: 24, right: 24, top: 40, bottom: 24),
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 400),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _Header(colorScheme: colorScheme),
-                        const SizedBox(height: 60),
                         _isLoading
                             ? const Center(
                                 child: Padding(
@@ -115,73 +104,136 @@ class _BabySelectionPageState extends State<BabySelectionPage> {
       ),
     );
   }
-}
 
-class _Header extends StatelessWidget {
-  const _Header({required this.colorScheme});
-
-  final ColorScheme colorScheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-          decoration: BoxDecoration(
-            color: colorScheme.primary,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: colorScheme.primary.withOpacity(0.25),
-                blurRadius: 18,
-                offset: const Offset(0, 12),
-              ),
+  /// AppBar personalizado siguiendo estándares UI/UX de AGENTS.md
+  PreferredSizeWidget _buildCustomAppBar(BuildContext context, ColorScheme colorScheme) {
+    return AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      centerTitle: false,
+      automaticallyImplyLeading: false,
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              colorScheme.primary,
+              colorScheme.primary.withOpacity(0.85),
+              const Color(0xFFFF8A65),
             ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
-                  shape: BoxShape.circle,
+        ),
+      ),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.3)),
+            ),
+            child: Icon(Icons.baby_changing_station_rounded, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '¡Hola! Bienvenido',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                    letterSpacing: 0.5,
+                  ),
                 ),
-                child: Icon(
-                  Icons.favorite_rounded,
-                  color: colorScheme.primary,
-                  size: 28,
+                Text(
+                  _babies.isEmpty
+                      ? 'Registra tu primer bebé'
+                      : '${_babies.length} ${_babies.length == 1 ? 'bebé registrado' : 'bebés registrados'}',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        Container(
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withOpacity(0.2)),
+          ),
+          child: PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded, color: Colors.white, size: 20),
+            tooltip: 'Más opciones',
+            color: Colors.white,
+            surfaceTintColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            offset: const Offset(0, 50),
+            onSelected: (value) async {
+              switch (value) {
+                case 'babies':
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BabyListPage()),
+                  );
+                  if (result == true) _loadBabies();
+                  break;
+                case 'settings':
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsPage()),
+                  );
+                  // Recargar para aplicar cambios de color si los hay
+                  setState(() {});
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              if (_babies.isNotEmpty)
+                PopupMenuItem<String>(
+                  value: 'babies',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.list_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      const Text('Ver todos los bebés'),
+                    ],
+                  ),
+                ),
+              PopupMenuItem<String>(
+                value: 'settings',
+                child: Row(
                   children: [
-                    Text(
-                      '¡Hola mamá, hola papá!',
-                      style: textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Icon(
+                      Icons.settings_rounded,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 20,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Vamos a crear el espacio perfecto para tu bebé.',
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.9),
-                      ),
-                    ),
+                    const SizedBox(width: 12),
+                    const Text('Configuración'),
                   ],
                 ),
               ),
             ],
           ),
         ),
+        const SizedBox(width: 8),
       ],
     );
   }
@@ -201,10 +253,7 @@ class _EmptyStateCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(32),
         gradient: LinearGradient(
-          colors: [
-            colorScheme.primary.withOpacity(0.12),
-            Colors.white,
-          ],
+          colors: [colorScheme.primary.withOpacity(0.12), Colors.white],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -227,11 +276,7 @@ class _EmptyStateCard extends StatelessWidget {
                 color: colorScheme.secondary.withOpacity(0.25),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.baby_changing_station,
-                size: 48,
-                color: colorScheme.secondary,
-              ),
+              child: Icon(Icons.baby_changing_station, size: 48, color: colorScheme.secondary),
             ),
             const SizedBox(height: 28),
             Text(
@@ -267,9 +312,7 @@ class _EmptyStateCard extends StatelessWidget {
                       backgroundColor: colorScheme.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 18),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       elevation: 2,
                     ),
                     icon: const Icon(Icons.add_rounded, size: 20),
@@ -290,8 +333,7 @@ class _EmptyStateCard extends StatelessWidget {
                   foregroundColor: colorScheme.primary,
                   side: BorderSide(color: colorScheme.primary.withOpacity(0.3)),
                   padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 ),
                 child: Text(
                   'Ya tengo un bebé registrado',
@@ -427,10 +469,7 @@ class _BabiesContent extends StatelessWidget {
 }
 
 class _DecorativeBubble extends StatelessWidget {
-  const _DecorativeBubble({
-    required this.size,
-    required this.color,
-  });
+  const _DecorativeBubble({required this.size, required this.color});
 
   final double size;
   final Color color;
@@ -440,10 +479,7 @@ class _DecorativeBubble extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }

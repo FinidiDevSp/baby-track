@@ -231,14 +231,14 @@ class _BabyRegistrationPageState extends State<BabyRegistrationPage> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF4F0),
+      backgroundColor: colorScheme.surface,
       appBar: _buildCustomAppBar(context, colorScheme),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFFFF4F0), Color(0xFFFFFDF7)],
+            colors: [colorScheme.surface, colorScheme.surface.withOpacity(0.8)],
           ),
         ),
         child: SafeArea(
@@ -295,14 +295,30 @@ class _BabyRegistrationPageState extends State<BabyRegistrationPage> {
   /// AppBar personalizado siguiendo estándares UI/UX de AGENTS.md
   PreferredSizeWidget _buildCustomAppBar(BuildContext context, ColorScheme colorScheme) {
     return AppBar(
-      backgroundColor: colorScheme.primary,
+      backgroundColor: Colors.transparent,
       elevation: 0,
-      centerTitle: true,
-      automaticallyImplyLeading: false,
+      centerTitle: false,
+      leading: Container(
+        margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          tooltip: 'Volver',
+        ),
+      ),
       flexibleSpace: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [colorScheme.primary, colorScheme.primary.withOpacity(0.9)],
+            colors: [
+              colorScheme.primary,
+              colorScheme.primary.withOpacity(0.85),
+              colorScheme.secondary,
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -311,42 +327,46 @@ class _BabyRegistrationPageState extends State<BabyRegistrationPage> {
       title: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), shape: BoxShape.circle),
-            child: Icon(Icons.baby_changing_station, color: colorScheme.primary, size: 24),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.3)),
+            ),
+            child: Icon(
+              widget.babyToEdit != null ? Icons.edit_rounded : Icons.baby_changing_station_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  widget.babyToEdit != null ? '¡Editar bebé!' : '¡Registrar bebé!',
+                  widget.babyToEdit != null ? 'Editar bebé' : 'Nuevo bebé',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
-                    fontSize: 16,
+                    fontSize: 18,
+                    letterSpacing: 0.5,
                   ),
                 ),
                 Text(
                   'Información básica',
-                  style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
           ),
         ],
       ),
-      actions: [
-        IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.close_rounded, color: Colors.white),
-          tooltip: 'Cerrar',
-        ),
-        const SizedBox(width: 8),
-      ],
     );
   }
 }
@@ -455,35 +475,47 @@ class _RegistrationCard extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Birth date field with improved design
+            // Birth date field integrated with warm design
             GestureDetector(
               onTap: onSelectDate,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  gradient: LinearGradient(
+                    colors: selectedDate != null
+                        ? [const Color(0xFFFFF8F0), const Color(0xFFFFF4E6)]
+                        : [const Color(0xFFFAF7F2), const Color(0xFFF5F1EA)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   border: Border.all(
                     color: selectedDate != null
-                        ? colorScheme.primary.withOpacity(0.3)
-                        : Colors.grey[300]!,
+                        ? colorScheme.primary.withOpacity(0.4)
+                        : const Color(0xFFE8DDD4),
                     width: 1.5,
                   ),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      color: colorScheme.primary.withOpacity(0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: colorScheme.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+                        gradient: LinearGradient(
+                          colors: [
+                            colorScheme.primary.withOpacity(0.15),
+                            colorScheme.primary.withOpacity(0.08),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: colorScheme.primary.withOpacity(0.2)),
                       ),
                       child: Icon(
                         Icons.calendar_today_rounded,
@@ -499,8 +531,8 @@ class _RegistrationCard extends StatelessWidget {
                           Text(
                             'Fecha de nacimiento',
                             style: textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF8B6B47),
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -509,14 +541,27 @@ class _RegistrationCard extends StatelessWidget {
                                 ? DateFormat('dd MMMM yyyy', 'es_ES').format(selectedDate!)
                                 : 'Selecciona una fecha',
                             style: textTheme.bodyLarge?.copyWith(
-                              color: selectedDate != null ? Colors.black87 : Colors.grey[500],
-                              fontWeight: FontWeight.w600,
+                              color: selectedDate != null
+                                  ? const Color(0xFF5D4037)
+                                  : const Color(0xFFA8927D),
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    Icon(Icons.arrow_drop_down_rounded, color: Colors.grey[600], size: 24),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.arrow_drop_down_rounded,
+                        color: colorScheme.primary,
+                        size: 20,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -540,8 +585,8 @@ class _RegistrationCard extends StatelessWidget {
                     onTap: () => onSelectGender('M'),
                     icon: Icons.boy_rounded,
                     label: 'Niño',
-                    selectedColor: const Color(0xFF87CEEB), // Sky blue pastel
-                    baseColor: const Color(0xFFE6F3FF),
+                    selectedColor: const Color(0xFF4FC3F7), // Blue que complementa el naranja
+                    baseColor: const Color(0xFFF3F8FC),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -551,8 +596,8 @@ class _RegistrationCard extends StatelessWidget {
                     onTap: () => onSelectGender('F'),
                     icon: Icons.girl_rounded,
                     label: 'Niña',
-                    selectedColor: const Color(0xFFFFB6C1), // Light pink pastel
-                    baseColor: const Color(0xFFFFF0F5),
+                    selectedColor: const Color(0xFFFF8A80), // Coral que armoniza con el tema
+                    baseColor: const Color(0xFFFFF5F5),
                   ),
                 ),
               ],
@@ -619,40 +664,67 @@ class _GenderOption extends StatelessWidget {
         curve: Curves.easeInOut,
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
         decoration: BoxDecoration(
-          color: isSelected ? selectedColor.withOpacity(0.2) : baseColor,
-          border: Border.all(color: isSelected ? selectedColor : Colors.grey[300]!, width: 2),
+          gradient: isSelected
+              ? LinearGradient(
+                  colors: [selectedColor.withOpacity(0.25), selectedColor.withOpacity(0.15)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : LinearGradient(
+                  colors: [baseColor, const Color(0xFFFAF7F2)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+          border: Border.all(
+            color: isSelected ? selectedColor.withOpacity(0.6) : const Color(0xFFE8DDD4),
+            width: 1.5,
+          ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: selectedColor.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
+                    color: selectedColor.withOpacity(0.2),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
                   ),
                 ]
-              : null,
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
         child: Column(
           children: [
             AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.all(12),
+              duration: const Duration(milliseconds: 250),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: isSelected ? selectedColor.withOpacity(0.3) : Colors.grey[100],
+                gradient: isSelected
+                    ? LinearGradient(
+                        colors: [selectedColor.withOpacity(0.4), selectedColor.withOpacity(0.2)],
+                      )
+                    : LinearGradient(colors: [const Color(0xFFF5F1EA), const Color(0xFFEDE7DD)]),
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? selectedColor.withOpacity(0.3) : const Color(0xFFDDD2C6),
+                ),
               ),
               child: Icon(
                 icon,
-                size: 32,
-                color: isSelected ? selectedColor.withOpacity(0.8) : Colors.grey[600],
+                size: 30,
+                color: isSelected ? selectedColor.withOpacity(0.9) : const Color(0xFF8B6B47),
               ),
             ),
             const SizedBox(height: 12),
             Text(
               label,
               style: textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: isSelected ? selectedColor.withOpacity(0.9) : Colors.grey[600],
+                fontWeight: FontWeight.w700,
+                color: isSelected ? selectedColor.withOpacity(0.9) : const Color(0xFF8B6B47),
+                letterSpacing: 0.5,
               ),
             ),
           ],

@@ -104,12 +104,14 @@ class _BabyListPageState extends State<BabyListPage> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      backgroundColor: colorScheme.surface,
+      appBar: _buildCustomAppBar(context, colorScheme),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFFFF4F0), Color(0xFFFFFDF7)],
+            colors: [colorScheme.surface, colorScheme.surface.withOpacity(0.8)],
           ),
         ),
         child: SafeArea(
@@ -127,96 +129,98 @@ class _BabyListPageState extends State<BabyListPage> {
                 child: _DecorativeBubble(size: 140, color: colorScheme.primary.withOpacity(0.18)),
               ),
               // Content
-              Column(
-                children: [
-                  _Header(colorScheme: colorScheme),
-                  Expanded(
-                    child: _isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : _babies.isEmpty
-                        ? _EmptyState(colorScheme: colorScheme)
-                        : _BabyGrid(
-                            babies: _babies,
-                            colorScheme: colorScheme,
-                            onEdit: _editBaby,
-                            onDelete: _deleteBaby,
-                          ),
-                  ),
-                ],
-              ),
+              _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _babies.isEmpty
+                  ? _EmptyState(colorScheme: colorScheme)
+                  : _BabyGrid(
+                      babies: _babies,
+                      colorScheme: colorScheme,
+                      onEdit: _editBaby,
+                      onDelete: _deleteBaby,
+                    ),
             ],
           ),
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final result = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (context) => const BabyRegistrationPage()),
+          );
+          if (result == true) _loadBabies();
+        },
+        backgroundColor: colorScheme.primary,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
     );
   }
-}
 
-class _Header extends StatelessWidget {
-  const _Header({required this.colorScheme});
-
-  final ColorScheme colorScheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: Icon(Icons.arrow_back_rounded, color: colorScheme.primary),
-              ),
-              const Spacer(),
+  /// AppBar personalizado siguiendo estándares UI/UX de AGENTS.md
+  PreferredSizeWidget _buildCustomAppBar(BuildContext context, ColorScheme colorScheme) {
+    return AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      centerTitle: false,
+      leading: Container(
+        margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          tooltip: 'Volver',
+        ),
+      ),
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              colorScheme.primary,
+              colorScheme.primary.withOpacity(0.85),
+              const Color(0xFFFF8A65),
             ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          const SizedBox(height: 20),
+        ),
+      ),
+      title: Row(
+        children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: colorScheme.primary,
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: colorScheme.primary.withOpacity(0.25),
-                  blurRadius: 18,
-                  offset: const Offset(0, 12),
-                ),
-              ],
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.3)),
             ),
-            child: Row(
+            child: Icon(Icons.family_restroom_rounded, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
-                    shape: BoxShape.circle,
+                Text(
+                  'Mis bebés',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                    letterSpacing: 0.5,
                   ),
-                  child: Icon(Icons.family_restroom, color: colorScheme.primary, size: 28),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Tus bebés registrados',
-                        style: textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Selecciona o edita un perfil.',
-                        style: textTheme.bodyMedium?.copyWith(color: Colors.white.withOpacity(0.9)),
-                      ),
-                    ],
+                Text(
+                  '${_babies.length} ${_babies.length == 1 ? 'bebé' : 'bebés'} registrados',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -244,11 +248,16 @@ class _BabyGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 40, // Más espacio desde la AppBar
+        bottom: 24,
+      ),
       child: GridView.builder(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          childAspectRatio: 0.85,
+          childAspectRatio: 0.9, // Aumentado para más altura
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
         ),
@@ -319,14 +328,15 @@ class _BabyCard extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14), // Reducido padding
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min, // Importante para evitar overflow
           children: [
             // Photo
             Container(
-              width: 70,
-              height: 70,
+              width: 60, // Reducido tamaño
+              height: 60,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: baby.gender == 'M'
@@ -346,23 +356,23 @@ class _BabyCard extends StatelessWidget {
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => Icon(
                           baby.gender == 'M' ? Icons.boy : Icons.girl,
-                          size: 32,
+                          size: 28, // Reducido tamaño
                           color: baby.gender == 'M' ? Colors.blue : Colors.pink,
                         ),
                       ),
                     )
                   : Icon(
                       baby.gender == 'M' ? Icons.boy : Icons.girl,
-                      size: 32,
+                      size: 28, // Reducido tamaño
                       color: baby.gender == 'M' ? Colors.blue : Colors.pink,
                     ),
             ),
-            const SizedBox(height: 12),
-
+            const SizedBox(height: 8), // Reducido espaciado
             // Name
             Text(
               baby.name,
-              style: textTheme.titleMedium?.copyWith(
+              style: textTheme.titleSmall?.copyWith(
+                // Cambiado a titleSmall
                 fontWeight: FontWeight.w700,
                 color: colorScheme.primary,
               ),
@@ -370,48 +380,59 @@ class _BabyCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 4),
-
+            const SizedBox(height: 2), // Reducido espaciado
             // Age
             Text(
               _getAge(),
               style: textTheme.bodySmall?.copyWith(
                 color: Colors.grey[600],
                 fontWeight: FontWeight.w500,
+                fontSize: 11, // Tamaño específico más pequeño
               ),
               textAlign: TextAlign.center,
+              maxLines: 2, // Permitir 2 líneas para edad
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 8),
-
+            const SizedBox(height: 4), // Reducido espaciado
             // Birth date
             Text(
               DateFormat('dd/MM/yyyy').format(baby.birthDate),
-              style: textTheme.bodySmall?.copyWith(color: Colors.grey[500]),
+              style: textTheme.bodySmall?.copyWith(
+                color: Colors.grey[500],
+                fontSize: 10, // Tamaño más pequeño
+              ),
               textAlign: TextAlign.center,
             ),
-            const Spacer(),
-
-            // Action buttons
+            const SizedBox(height: 8), // Espacio fijo en lugar de Spacer
+            // Action buttons - Compactos
             Row(
               children: [
                 Expanded(
-                  child: IconButton(
-                    onPressed: onEdit,
-                    icon: Icon(Icons.edit_rounded, color: colorScheme.primary, size: 20),
-                    style: IconButton.styleFrom(
-                      backgroundColor: colorScheme.primary.withOpacity(0.1),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  child: SizedBox(
+                    height: 32, // Altura fija más pequeña
+                    child: IconButton(
+                      onPressed: onEdit,
+                      icon: Icon(Icons.edit_rounded, color: colorScheme.primary, size: 16),
+                      style: IconButton.styleFrom(
+                        backgroundColor: colorScheme.primary.withOpacity(0.1),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        padding: EdgeInsets.zero, // Sin padding extra
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6), // Reducido espaciado
                 Expanded(
-                  child: IconButton(
-                    onPressed: onDelete,
-                    icon: const Icon(Icons.delete_rounded, color: Colors.red, size: 20),
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.red.withOpacity(0.1),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  child: SizedBox(
+                    height: 32, // Altura fija más pequeña
+                    child: IconButton(
+                      onPressed: onDelete,
+                      icon: const Icon(Icons.delete_rounded, color: Colors.red, size: 16),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.red.withOpacity(0.1),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        padding: EdgeInsets.zero, // Sin padding extra
+                      ),
                     ),
                   ),
                 ),
