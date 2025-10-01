@@ -66,28 +66,30 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  LinearGradient _buildAppBarGradient(ColorScheme colorScheme) {
+    final blendedColor =
+        Color.lerp(colorScheme.primary, colorScheme.secondary, 0.5) ??
+            colorScheme.primary;
+
+    return LinearGradient(
+      colors: [colorScheme.primary, blendedColor, colorScheme.secondary],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+  }
+
   PreferredSizeWidget _buildCustomAppBar(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return PreferredSize(
-      preferredSize: const Size.fromHeight(100),
-      child: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                colorScheme.primary,
-                colorScheme.primary.withOpacity(0.85),
-                colorScheme.secondary,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
+    return AppBar(
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: _buildAppBarGradient(colorScheme),
         ),
-        title: Row(
+      ),
+      title: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
@@ -126,17 +128,17 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ],
         ),
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withOpacity(0.3)),
-            ),
-            child: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 16),
+      ),
+      leading: IconButton(
+        onPressed: () => Navigator.pop(context),
+        icon: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withOpacity(0.3)),
           ),
+          child: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 16),
         ),
       ),
     );

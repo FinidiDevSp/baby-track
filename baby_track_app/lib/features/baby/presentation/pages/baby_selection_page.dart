@@ -37,6 +37,18 @@ class _BabySelectionPageState extends State<BabySelectionPage> {
     }
   }
 
+  LinearGradient _buildAppBarGradient(ColorScheme colorScheme) {
+    final blendedColor =
+        Color.lerp(colorScheme.primary, colorScheme.secondary, 0.5) ??
+            colorScheme.primary;
+
+    return LinearGradient(
+      colors: [colorScheme.primary, blendedColor, colorScheme.secondary],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -114,15 +126,7 @@ class _BabySelectionPageState extends State<BabySelectionPage> {
       automaticallyImplyLeading: false,
       flexibleSpace: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              colorScheme.primary,
-              colorScheme.primary.withOpacity(0.85),
-              const Color(0xFFFF8A65),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          gradient: _buildAppBarGradient(colorScheme),
         ),
       ),
       title: Row(
