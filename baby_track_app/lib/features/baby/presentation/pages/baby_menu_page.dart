@@ -4,6 +4,7 @@ import 'package:baby_track_app/features/baby/domain/models/baby.dart';
 import 'package:baby_track_app/features/baby/domain/models/baby_daily_log.dart';
 import 'package:baby_track_app/features/baby/infrastructure/baby_daily_log_repository_impl.dart';
 import 'package:baby_track_app/features/baby/presentation/pages/baby_daily_log_page.dart';
+import 'package:baby_track_app/features/baby/presentation/pages/baby_history_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -18,7 +19,6 @@ class BabyMenuPage extends StatefulWidget {
 
 class _BabyMenuPageState extends State<BabyMenuPage> {
   final BabyDailyLogRepositoryImpl _dailyLogRepository = BabyDailyLogRepositoryImpl();
-  final PageController _actionPageController = PageController(viewportFraction: 0.72);
 
   bool _isLoadingStats = false;
   List<BabyDailyLog> _todayLogs = const [];
@@ -28,12 +28,6 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
   void initState() {
     super.initState();
     _loadStats();
-  }
-
-  @override
-  void dispose() {
-    _actionPageController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadStats() async {
@@ -121,17 +115,6 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
     }
   }
 
-  void _showComingSoon(BuildContext context, String featureName) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('$featureName estará disponible muy pronto.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-  }
-
   BabyDailyLog? _findLastLog(bool Function(BabyDailyLog) predicate) {
     for (final log in _recentLogs) {
       if (predicate(log)) {
@@ -199,30 +182,6 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
     final baby = widget.baby;
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-
-    final actions = [
-      _BabyActionCardData(
-        title: 'Registro',
-        icon: Icons.edit_note_rounded,
-        accentColor: colorScheme.primary,
-        onTap: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => BabyDailyLogPage(baby: baby),
-            ),
-          );
-          if (!mounted) {
-            return;
-          }
-          await _loadStats();
-        },
-      ),
-      _BabyActionCardData(
-        title: 'Historial',
-        icon: Icons.history_rounded,
-        accentColor: colorScheme.secondary,
-      ),
-    ];
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -331,12 +290,26 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
                         genderColor: _genderColor(colorScheme),
                         ageLabel: _formatAge(),
                       ),
-                      const SizedBox(height: 28),
-                      _BabyActionCarousel(
-                        controller: _actionPageController,
-                        actions: actions,
-                        onUnavailableAction: (action) =>
-                            _showComingSoon(context, action.title),
+                      const SizedBox(height: 24),
+                      _BabyQuickActions(
+                        onCreateLog: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => BabyDailyLogPage(baby: baby),
+                            ),
+                          );
+                          if (!mounted) {
+                            return;
+                          }
+                          await _loadStats();
+                        },
+                        onViewHistory: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => BabyHistoryPage(baby: baby),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 28),
                       _buildStatsSection(colorScheme, textTheme),
@@ -555,6 +528,99 @@ class _BabySummaryCard extends StatelessWidget {
   }
 }
 
+class _BabyQuickActions extends StatelessWidget {
+  const _BabyQuickActions({
+    required this.onCreateLog,
+    required this.onViewHistory,
+  });
+
+  final VoidCallback onCreateLog;
+  final VoidCallback onViewHistory;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _QuickActionButton(
+            icon: Icons.edit_note_rounded,
+            label: 'Registro',
+            color: colorScheme.primary,
+            onTap: onCreateLog,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _QuickActionButton(
+            icon: Icons.history_rounded,
+            label: 'Historial',
+            color: colorScheme.secondary,
+            onTap: onViewHistory,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickActionButton extends StatelessWidget {
+  const _QuickActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final background = color.withOpacity(0.12);
+    final borderColor = color.withOpacity(0.25);
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: borderColor),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _BabyAvatar extends StatelessWidget {
   const _BabyAvatar({
     required this.baby,
@@ -631,119 +697,6 @@ class _InfoPill extends StatelessWidget {
                 ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _BabyActionCarousel extends StatelessWidget {
-  const _BabyActionCarousel({
-    required this.actions,
-    required this.controller,
-    required this.onUnavailableAction,
-  });
-
-  final List<_BabyActionCardData> actions;
-  final PageController controller;
-  final void Function(_BabyActionCardData action) onUnavailableAction;
-
-  @override
-  Widget build(BuildContext context) {
-    if (actions.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return SizedBox(
-      height: 180,
-      child: PageView.builder(
-        controller: controller,
-        padEnds: false,
-        itemCount: actions.length,
-        itemBuilder: (context, index) {
-          final action = actions[index];
-          return Padding(
-            padding: EdgeInsets.only(right: index == actions.length - 1 ? 0 : 16),
-            child: _BabyActionCard(
-              data: action,
-              onTap: action.onTap ?? () => onUnavailableAction(action),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _BabyActionCard extends StatelessWidget {
-  const _BabyActionCard({required this.data, required this.onTap});
-
-  final _BabyActionCardData data;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final surfaceVariant = colorScheme.surfaceVariant;
-    final baseColor = Color.alphaBlend(Colors.black.withOpacity(0.22), surfaceVariant);
-    final gradientColors = [
-      Color.alphaBlend(data.accentColor.withOpacity(0.18), baseColor),
-      Color.alphaBlend(data.accentColor.withOpacity(0.08), baseColor),
-    ];
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
-      child: Ink(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: LinearGradient(
-            colors: gradientColors,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(
-            color: colorScheme.outlineVariant.withOpacity(0.6),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 20,
-              offset: const Offset(0, 12),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: data.accentColor.withOpacity(0.16),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(data.icon, color: data.accentColor, size: 26),
-              ),
-              const Spacer(),
-              Text(
-                data.title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (data.description != null && data.description!.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  data.description!,
-                  style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -840,22 +793,6 @@ class _BabyStatTile extends StatelessWidget {
       ],
     );
   }
-}
-
-class _BabyActionCardData {
-  const _BabyActionCardData({
-    required this.title,
-    this.description,
-    required this.icon,
-    required this.accentColor,
-    this.onTap,
-  });
-
-  final String title;
-  final String? description;
-  final IconData icon;
-  final Color accentColor;
-  final VoidCallback? onTap;
 }
 
 class _DecorativeBubble extends StatelessWidget {
