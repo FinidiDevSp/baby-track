@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:baby_track_app/features/baby/domain/models/baby.dart';
+import 'package:baby_track_app/features/baby/presentation/pages/baby_daily_log_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -91,6 +92,11 @@ class BabyMenuPage extends StatelessWidget {
           colorScheme.primary.withOpacity(0.18),
           colorScheme.primary.withOpacity(0.08),
         ],
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => BabyDailyLogPage(baby: baby),
+          ),
+        ),
       ),
       _BabyActionCardData(
         title: 'HISTORIAL',
@@ -237,7 +243,8 @@ class BabyMenuPage extends StatelessWidget {
                                   width: cardWidth,
                                   child: _BabyActionCard(
                                     data: action,
-                                    onTap: () => _showComingSoon(context, action.title),
+                                    onTap: action.onTap ??
+                                        () => _showComingSoon(context, action.title),
                                   ),
                                 ),
                               )
@@ -534,6 +541,7 @@ class _BabyActionCardData {
     required this.icon,
     required this.accentColor,
     required this.backgroundColors,
+    this.onTap,
   });
 
   final String title;
@@ -541,6 +549,7 @@ class _BabyActionCardData {
   final IconData icon;
   final Color accentColor;
   final List<Color> backgroundColors;
+  final VoidCallback? onTap;
 }
 
 class _DecorativeBubble extends StatelessWidget {

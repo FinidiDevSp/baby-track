@@ -4,7 +4,7 @@ import 'package:sqflite/sqflite.dart';
 /// Sistema de migraciones siguiendo AGENTS.md
 class DatabaseHelper {
   static const String _databaseName = 'baby_track.db';
-  static const int _databaseVersion = 2; // Incrementado para migración
+  static const int _databaseVersion = 3; // Incrementado para nueva tabla de registros diarios
 
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
@@ -30,9 +30,10 @@ class DatabaseHelper {
     );
   }
 
-  /// Creación inicial con estructura v2
+  /// Creación inicial con estructura v3
   Future<void> _onCreate(Database db, int version) async {
     await _createBabiesTableV2(db);
+    await _createBabyDailyLogsTable(db);
     await _createIndices(db);
   }
 
@@ -45,6 +46,11 @@ class DatabaseHelper {
       await _upgradeToV2(db);
     }
 
+    // Migración de v2 a v3: crear tabla baby_daily_logs
+    if (oldVersion < 3) {
+      await _upgradeToV3(db);
+    }
+
     // Futuras migraciones
     // if (oldVersion < 3) {
     //   await _upgradeToV3(db);
@@ -55,6 +61,8 @@ class DatabaseHelper {
   Future<void> _createIndices(Database db) async {
     await db.execute('CREATE INDEX IF NOT EXISTS idx_babies_name ON babies(name)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_babies_birth_date ON babies(birth_date)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_baby_daily_logs_baby_day ON baby_daily_logs(baby_id, log_day)');
   }
 
   /// Tabla v2 (con gender)
@@ -68,6 +76,24 @@ class DatabaseHelper {
         photo_path TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER
+      )
+    ''');
+  }
+
+  Future<void> _createBabyDailyLogsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE baby_daily_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        baby_id INTEGER NOT NULL,
+        log_day INTEGER NOT NULL,
+        logged_at INTEGER NOT NULL,
+        intake_ml INTEGER,
+        did_poop INTEGER NOT NULL DEFAULT 0,
+        showered INTEGER NOT NULL DEFAULT 0,
+        notes TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER,
+        FOREIGN KEY (baby_id) REFERENCES babies(id) ON DELETE CASCADE
       )
     ''');
   }
@@ -87,6 +113,19 @@ class DatabaseHelper {
     } catch (e) {
       print('Error during v1 to v2 migration: $e');
       // En caso de error, registrar pero continuar
+      rethrow;
+    }
+  }
+
+  Future<void> _upgradeToV3(Database db) async {
+    try {
+      await _createBabyDailyLogsTable(db);
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_baby_daily_logs_baby_day ON baby_daily_logs(baby_id, log_day)',
+      );
+      print('Successfully created baby_daily_logs table');
+    } catch (e) {
+      print('Error during v2 to v3 migration: $e');
       rethrow;
     }
   }
