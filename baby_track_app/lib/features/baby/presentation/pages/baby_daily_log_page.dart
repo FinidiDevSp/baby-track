@@ -24,6 +24,7 @@ class _BabyDailyLogPageState extends State<BabyDailyLogPage> {
   TimeOfDay _selectedTime = TimeOfDay.now();
   bool _didPoop = false;
   bool _showered = false;
+  bool _vomited = false;
   bool _isSaving = false;
   bool _isLoadingLogs = false;
   List<BabyDailyLog> _logs = const [];
@@ -134,6 +135,7 @@ class _BabyDailyLogPageState extends State<BabyDailyLogPage> {
       intakeMl: intakeText.isEmpty ? null : int.parse(intakeText),
       didPoop: _didPoop,
       showered: _showered,
+      vomited: _vomited,
       notes: notesText.isEmpty ? null : notesText,
       createdAt: DateTime.now(),
     );
@@ -186,6 +188,7 @@ class _BabyDailyLogPageState extends State<BabyDailyLogPage> {
       _notesController.clear();
       _didPoop = false;
       _showered = false;
+      _vomited = false;
       _selectedTime = TimeOfDay.now();
     });
   }
@@ -304,6 +307,13 @@ class _BabyDailyLogPageState extends State<BabyDailyLogPage> {
                 title: const Text('¿Ha hecho caca?'),
                 value: _didPoop,
                 onChanged: (value) => setState(() => _didPoop = value),
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('¿Ha vomitado?'),
+                value: _vomited,
+                onChanged: (value) => setState(() => _vomited = value),
               ),
               const SizedBox(height: 8),
               SwitchListTile.adaptive(
@@ -509,6 +519,13 @@ class _DailyLogCard extends StatelessWidget {
         icon: Icons.shower_rounded,
         label: 'Ducha',
         color: colorScheme.tertiary,
+      ));
+    }
+    if (log.vomited) {
+      chips.add(_InfoChip(
+        icon: Icons.sick_rounded,
+        label: 'Vómito',
+        color: colorScheme.error,
       ));
     }
 

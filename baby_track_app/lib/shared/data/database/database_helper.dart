@@ -4,7 +4,7 @@ import 'package:sqflite/sqflite.dart';
 /// Sistema de migraciones siguiendo AGENTS.md
 class DatabaseHelper {
   static const String _databaseName = 'baby_track.db';
-  static const int _databaseVersion = 3; // Incrementado para nueva tabla de registros diarios
+  static const int _databaseVersion = 4; // Incrementado para columna de vómito en registros diarios
 
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
@@ -51,6 +51,11 @@ class DatabaseHelper {
       await _upgradeToV3(db);
     }
 
+    // Migración de v3 a v4: agregar columna vomited
+    if (oldVersion < 4) {
+      await _upgradeToV4(db);
+    }
+
     // Futuras migraciones
     // if (oldVersion < 3) {
     //   await _upgradeToV3(db);
@@ -90,6 +95,7 @@ class DatabaseHelper {
         intake_ml INTEGER,
         did_poop INTEGER NOT NULL DEFAULT 0,
         showered INTEGER NOT NULL DEFAULT 0,
+        vomited INTEGER NOT NULL DEFAULT 0,
         notes TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER,
@@ -126,6 +132,22 @@ class DatabaseHelper {
       print('Successfully created baby_daily_logs table');
     } catch (e) {
       print('Error during v2 to v3 migration: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _upgradeToV4(Database db) async {
+    try {
+      final columns = await db.rawQuery('PRAGMA table_info(baby_daily_logs)');
+      final hasVomited = columns.any((col) => col['name'] == 'vomited');
+      if (!hasVomited) {
+        await db.execute(
+          'ALTER TABLE baby_daily_logs ADD COLUMN vomited INTEGER NOT NULL DEFAULT 0',
+        );
+        print('Successfully added vomited column to baby_daily_logs table');
+      }
+    } catch (e) {
+      print('Error during v3 to v4 migration: $e');
       rethrow;
     }
   }

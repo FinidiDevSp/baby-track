@@ -7,6 +7,7 @@ class BabyDailyLog {
     this.intakeMl,
     this.didPoop = false,
     this.showered = false,
+    this.vomited = false,
     this.notes,
     required this.createdAt,
     this.updatedAt,
@@ -19,6 +20,7 @@ class BabyDailyLog {
   final int? intakeMl;
   final bool didPoop;
   final bool showered;
+  final bool vomited;
   final String? notes;
   final DateTime createdAt;
   final DateTime? updatedAt;
@@ -31,6 +33,7 @@ class BabyDailyLog {
     int? intakeMl,
     bool? didPoop,
     bool? showered,
+    bool? vomited,
     String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -43,6 +46,7 @@ class BabyDailyLog {
       intakeMl: intakeMl ?? this.intakeMl,
       didPoop: didPoop ?? this.didPoop,
       showered: showered ?? this.showered,
+      vomited: vomited ?? this.vomited,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -58,6 +62,7 @@ class BabyDailyLog {
       'intake_ml': intakeMl,
       'did_poop': didPoop ? 1 : 0,
       'showered': showered ? 1 : 0,
+      'vomited': vomited ? 1 : 0,
       'notes': notes,
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt?.millisecondsSinceEpoch,
@@ -73,6 +78,7 @@ class BabyDailyLog {
       intakeMl: json['intake_ml'] as int?,
       didPoop: (json['did_poop'] as int) == 1,
       showered: (json['showered'] as int) == 1,
+      vomited: (json['vomited'] as int?) == 1,
       notes: json['notes'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['created_at'] as int),
       updatedAt: json['updated_at'] != null
