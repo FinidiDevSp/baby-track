@@ -68,8 +68,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   LinearGradient _buildAppBarGradient(ColorScheme colorScheme) {
     final blendedColor =
-        Color.lerp(colorScheme.primary, colorScheme.secondary, 0.5) ??
-            colorScheme.primary;
+        Color.lerp(colorScheme.primary, colorScheme.secondary, 0.5) ?? colorScheme.primary;
 
     return LinearGradient(
       colors: [colorScheme.primary, blendedColor, colorScheme.secondary],
@@ -85,49 +84,46 @@ class _SettingsPageState extends State<SettingsPage> {
       elevation: 0,
       backgroundColor: Colors.transparent,
       flexibleSpace: Container(
-        decoration: BoxDecoration(
-          gradient: _buildAppBarGradient(colorScheme),
-        ),
+        decoration: BoxDecoration(gradient: _buildAppBarGradient(colorScheme)),
       ),
       title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withOpacity(0.3)),
-              ),
-              child: const Icon(Icons.settings_rounded, color: Colors.white, size: 22),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.3)),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Configuración',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 18,
-                      letterSpacing: 0.5,
-                    ),
+            child: const Icon(Icons.settings_rounded, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Configuración',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                    letterSpacing: 0.5,
                   ),
-                  Text(
-                    'Personaliza tu aplicación',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.85),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
+                ),
+                Text(
+                  'Personaliza tu aplicación',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
       leading: IconButton(
         onPressed: () => Navigator.pop(context),
