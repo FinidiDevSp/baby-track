@@ -18,6 +18,7 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
   final BabyDailyLogRepository _logRepository = BabyDailyLogRepositoryImpl();
   List<BabyDailyLog> _allLogs = [];
   final Map<String, List<BabyDailyLog>> _groupedLogs = {};
+  final Set<String> _collapsedDays = {};
   bool _isLoading = true;
 
   @override
@@ -64,6 +65,8 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
     for (final dayLogs in _groupedLogs.values) {
       dayLogs.sort((a, b) => a.loggedAt.compareTo(b.loggedAt));
     }
+
+    _collapsedDays.removeWhere((day) => !_groupedLogs.containsKey(day));
   }
 
   String _formatDayHeader(String dayKey) {
@@ -110,39 +113,42 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
   }
 
   PreferredSizeWidget _buildCustomAppBar(BuildContext context, ColorScheme colorScheme) {
-    return PreferredSize(
-      preferredSize: const Size.fromHeight(100),
-      child: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: false,
-        leading: Container(
-          margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.2)),
-          ),
-          child: IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-            tooltip: 'Volver',
+    return AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      centerTitle: false,
+      toolbarHeight: 72,
+      leadingWidth: 64,
+      titleSpacing: 0,
+      leading: Container(
+        margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          tooltip: 'Volver',
+        ),
+      ),
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              colorScheme.primary,
+              colorScheme.primary.withOpacity(0.85),
+              colorScheme.secondary,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
         ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                colorScheme.primary,
-                colorScheme.primary.withOpacity(0.85),
-                colorScheme.secondary,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        title: Row(
+      ),
+      title: Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
@@ -253,67 +259,73 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
     ColorScheme colorScheme,
     TextTheme textTheme,
   ) {
-    final feedLogs = dayLogs.where((log) => (log.intakeMl ?? 0) > 0).toList();
-    final totalMl = feedLogs.fold<int>(0, (sum, log) => sum + (log.intakeMl ?? 0));
-    final diaperCount = dayLogs.where((log) => log.didPoop).length;
-    final vomitCount = dayLogs.where((log) => log.vomited).length;
-    final showerCount = dayLogs.where((log) => log.showered).length;
-    final notesCount = dayLogs.where((log) => log.notes?.isNotEmpty == true).length;
+    final isCollapsed = _collapsedDays.contains(dayKey);
+    final summaryChips = <Widget>[];
+    List<BabyDailyLog> timelineLogs = const <BabyDailyLog>[];
 
-    final summaryChips = <Widget>[
-      _buildSummaryChip(
-        icon: Icons.event_note_rounded,
-        label: _pluralize(dayLogs.length, singular: 'registro', plural: 'registros'),
-        color: colorScheme.primary,
-        colorScheme: colorScheme,
-        textTheme: textTheme,
-      ),
-      if (feedLogs.isNotEmpty)
+    if (!isCollapsed) {
+      final feedLogs = dayLogs.where((log) => (log.intakeMl ?? 0) > 0).toList();
+      final totalMl = feedLogs.fold<int>(0, (sum, log) => sum + (log.intakeMl ?? 0));
+      final diaperCount = dayLogs.where((log) => log.didPoop).length;
+      final vomitCount = dayLogs.where((log) => log.vomited).length;
+      final showerCount = dayLogs.where((log) => log.showered).length;
+      final notesCount = dayLogs.where((log) => log.notes?.isNotEmpty == true).length;
+
+      summaryChips.addAll([
         _buildSummaryChip(
-          icon: Icons.local_drink_rounded,
-          label:
-              '${_pluralize(feedLogs.length, singular: 'toma', plural: 'tomas')} · ${totalMl} ml',
+          icon: Icons.event_note_rounded,
+          label: _pluralize(dayLogs.length, singular: 'registro', plural: 'registros'),
           color: colorScheme.primary,
           colorScheme: colorScheme,
           textTheme: textTheme,
         ),
-      if (diaperCount > 0)
-        _buildSummaryChip(
-          icon: Icons.baby_changing_station_rounded,
-          label:
-              _pluralize(diaperCount, singular: 'pañal sucio', plural: 'pañales sucios'),
-          color: colorScheme.secondary,
-          colorScheme: colorScheme,
-          textTheme: textTheme,
-        ),
-      if (showerCount > 0)
-        _buildSummaryChip(
-          icon: Icons.bathtub_rounded,
-          label: _pluralize(showerCount, singular: 'baño', plural: 'baños'),
-          color: colorScheme.tertiary,
-          colorScheme: colorScheme,
-          textTheme: textTheme,
-        ),
-      if (vomitCount > 0)
-        _buildSummaryChip(
-          icon: Icons.sick_rounded,
-          label: _pluralize(vomitCount, singular: 'vómito', plural: 'vómitos'),
-          color: colorScheme.error,
-          colorScheme: colorScheme,
-          textTheme: textTheme,
-        ),
-      if (notesCount > 0)
-        _buildSummaryChip(
-          icon: Icons.sticky_note_2_rounded,
-          label: _pluralize(notesCount, singular: 'nota', plural: 'notas'),
-          color: colorScheme.outline,
-          colorScheme: colorScheme,
-          textTheme: textTheme,
-        ),
-    ];
+        if (feedLogs.isNotEmpty)
+          _buildSummaryChip(
+            icon: Icons.local_drink_rounded,
+            label:
+                '${_pluralize(feedLogs.length, singular: 'toma', plural: 'tomas')} · ${totalMl} ml',
+            color: colorScheme.primary,
+            colorScheme: colorScheme,
+            textTheme: textTheme,
+          ),
+        if (diaperCount > 0)
+          _buildSummaryChip(
+            icon: Icons.baby_changing_station_rounded,
+            label:
+                _pluralize(diaperCount, singular: 'pañal sucio', plural: 'pañales sucios'),
+            color: colorScheme.secondary,
+            colorScheme: colorScheme,
+            textTheme: textTheme,
+          ),
+        if (showerCount > 0)
+          _buildSummaryChip(
+            icon: Icons.bathtub_rounded,
+            label: _pluralize(showerCount, singular: 'baño', plural: 'baños'),
+            color: colorScheme.tertiary,
+            colorScheme: colorScheme,
+            textTheme: textTheme,
+          ),
+        if (vomitCount > 0)
+          _buildSummaryChip(
+            icon: Icons.sick_rounded,
+            label: _pluralize(vomitCount, singular: 'vómito', plural: 'vómitos'),
+            color: colorScheme.error,
+            colorScheme: colorScheme,
+            textTheme: textTheme,
+          ),
+        if (notesCount > 0)
+          _buildSummaryChip(
+            icon: Icons.sticky_note_2_rounded,
+            label: _pluralize(notesCount, singular: 'nota', plural: 'notas'),
+            color: colorScheme.outline,
+            colorScheme: colorScheme,
+            textTheme: textTheme,
+          ),
+      ]);
 
-    final timelineLogs = [...dayLogs]
-      ..sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
+      timelineLogs = [...dayLogs]
+        ..sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -333,45 +345,71 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    Icons.calendar_today_rounded,
-                    color: colorScheme.primary,
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () {
+                  setState(() {
+                    if (isCollapsed) {
+                      _collapsedDays.remove(dayKey);
+                    } else {
+                      _collapsedDays.add(dayKey);
+                    }
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
                     children: [
-                      Text(
-                        _formatDayHeader(dayKey),
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: colorScheme.onSurface,
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          Icons.calendar_today_rounded,
+                          color: colorScheme.primary,
+                          size: 18,
                         ),
                       ),
-                      Text(
-                        DateFormat('d MMM yyyy', 'es').format(DateTime.parse(dayKey)),
-                        style: textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurface.withOpacity(0.6),
-                          fontWeight: FontWeight.w500,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _formatDayHeader(dayKey),
+                              style: textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                            Text(
+                              DateFormat('d MMM yyyy', 'es').format(DateTime.parse(dayKey)),
+                              style: textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurface.withOpacity(0.6),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      AnimatedRotation(
+                        turns: isCollapsed ? 0.5 : 0.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          Icons.keyboard_arrow_up_rounded,
+                          color: colorScheme.onSurface.withOpacity(0.7),
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
-            if (summaryChips.isNotEmpty) ...[
+            if (!isCollapsed && summaryChips.isNotEmpty) ...[
               const SizedBox(height: 16),
               Wrap(
                 spacing: 8,
@@ -379,12 +417,14 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
                 children: summaryChips,
               ),
             ],
-            const SizedBox(height: 20),
-            ...List.generate(timelineLogs.length, (index) {
-              final log = timelineLogs[index];
-              final isLast = index == timelineLogs.length - 1;
-              return _buildTimelineEntry(log, isLast, colorScheme, textTheme);
-            }),
+            if (!isCollapsed) ...[
+              const SizedBox(height: 20),
+              ...List.generate(timelineLogs.length, (index) {
+                final log = timelineLogs[index];
+                final isLast = index == timelineLogs.length - 1;
+                return _buildTimelineEntry(log, isLast, colorScheme, textTheme);
+              }),
+            ],
           ],
         ),
       ),
