@@ -1,10 +1,16 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:baby_track_app/features/baby/application/services/baby_daily_log_csv_service.dart';
 import 'package:baby_track_app/features/baby/domain/models/baby.dart';
 import 'package:baby_track_app/features/baby/domain/models/baby_daily_log.dart';
 import 'package:baby_track_app/features/baby/domain/repositories/baby_daily_log_repository.dart';
 import 'package:baby_track_app/features/baby/infrastructure/baby_daily_log_repository_impl.dart';
 import 'package:baby_track_app/shared/widgets/app_bars/baby_gradient_app_bar.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 
 class BabyHistoryPage extends StatefulWidget {
   const BabyHistoryPage({super.key, required this.baby});
@@ -17,6 +23,8 @@ class BabyHistoryPage extends StatefulWidget {
 
 class _BabyHistoryPageState extends State<BabyHistoryPage> {
   final BabyDailyLogRepository _logRepository = BabyDailyLogRepositoryImpl();
+  late final BabyDailyLogCsvService _csvService =
+      BabyDailyLogCsvService(logRepository: _logRepository);
   List<BabyDailyLog> _allLogs = [];
   final Map<String, List<BabyDailyLog>> _groupedLogs = {};
   final Set<String> _collapsedDays = {};
@@ -69,6 +77,189 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
     }
 
     _collapsedDays.removeWhere((day) => !_groupedLogs.containsKey(day));
+  }
+
+  Future<void> _showCsvOptions() async {
+    if (widget.baby.id == null) {
+      _showSnackBar('Debes guardar el perfil del bebé antes de exportar o importar.');
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        final textTheme = Theme.of(context).textTheme;
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.ios_share_rounded, color: colorScheme.primary),
+                title: Text('Exportar historial a CSV', style: textTheme.titleSmall),
+                subtitle: Text(
+                  'Genera un archivo compatible con la app',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _exportCsv();
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.upload_file_rounded, color: colorScheme.primary),
+                title: Text('Importar CSV actual', style: textTheme.titleSmall),
+                subtitle: Text(
+                  'Usa archivos exportados desde Baby Track',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _importStandardCsv();
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.history_rounded, color: colorScheme.secondary),
+                title:
+                    Text('Importar CSV app anterior (temporal)', style: textTheme.titleSmall),
+                subtitle: Text(
+                  'Permite migrar los datos del formato antiguo mostrado en la imagen.',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _importLegacyCsv();
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _exportCsv() async {
+    final babyId = widget.baby.id;
+    if (babyId == null) {
+      _showSnackBar('No se pudo exportar porque el bebé no está guardado.');
+      return;
+    }
+
+    try {
+      final csvContent = await _csvService.exportLogsAsCsv(babyId);
+      final sanitizedName = widget.baby.name
+          .toLowerCase()
+          .replaceAll(RegExp('[^a-z0-9]+'), '_')
+          .replaceAll(RegExp('_+'), '_')
+          .replaceAll(RegExp(r'^_+|_+\$'), '')
+          .trim();
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final fileName = '${sanitizedName.isEmpty ? 'historial' : sanitizedName}_$timestamp.csv';
+
+      final bytes = Uint8List.fromList(utf8.encode(csvContent));
+
+      await Share.shareXFiles(
+        <XFile>[
+          XFile.fromData(
+            bytes,
+            mimeType: 'text/csv',
+            name: fileName,
+          ),
+        ],
+        subject: 'Historial de ${widget.baby.name}',
+        text: 'Historial de registros de ${widget.baby.name}.',
+      );
+
+      _showSnackBar('Historial exportado en CSV.');
+    } catch (error) {
+      _showSnackBar('No se pudo exportar el historial: $error');
+    }
+  }
+
+  Future<void> _importStandardCsv() async {
+    await _handleCsvImport((String csv) async {
+      final babyId = widget.baby.id;
+      if (babyId == null) {
+        return 0;
+      }
+      return _csvService.importStandardCsv(babyId: babyId, csvContent: csv);
+    });
+  }
+
+  Future<void> _importLegacyCsv() async {
+    await _handleCsvImport((String csv) async {
+      final babyId = widget.baby.id;
+      if (babyId == null) {
+        return 0;
+      }
+      return _csvService.importLegacyCsv(babyId: babyId, csvContent: csv);
+    });
+  }
+
+  Future<void> _handleCsvImport(
+    Future<int> Function(String csvContent) importer,
+  ) async {
+    final babyId = widget.baby.id;
+    if (babyId == null) {
+      _showSnackBar('Debes guardar el perfil del bebé antes de importar registros.');
+      return;
+    }
+
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['csv'],
+        withData: true,
+      );
+
+      if (result == null || result.files.isEmpty) {
+        return;
+      }
+
+      final pickedFile = result.files.first;
+      final fileBytes = pickedFile.bytes;
+
+      if (fileBytes == null) {
+        _showSnackBar('No se pudo leer el archivo seleccionado.');
+        return;
+      }
+
+      final csvContent = utf8.decode(fileBytes, allowMalformed: true);
+      final imported = await importer(csvContent);
+
+      if (imported > 0) {
+        await _loadAllLogs();
+        _showSnackBar('$imported registros importados correctamente.');
+      } else {
+        _showSnackBar('No se agregaron registros nuevos desde el archivo.');
+      }
+    } on FormatException catch (error) {
+      _showSnackBar('El archivo no tiene el formato esperado: ${error.message}');
+    } catch (error) {
+      _showSnackBar('Ocurrió un error al importar el CSV: $error');
+    }
+  }
+
+  void _showSnackBar(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   void _toggleFilter(String dayKey, String filterType) {
@@ -146,6 +337,16 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
         subtitle: 'Registro de ${widget.baby.name}',
         icon: Icons.history_rounded,
         toolbarHeight: 100,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: IconButton(
+              tooltip: 'Importar o exportar historial',
+              icon: const Icon(Icons.import_export_rounded, color: Colors.white),
+              onPressed: _showCsvOptions,
+            ),
+          ),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(
