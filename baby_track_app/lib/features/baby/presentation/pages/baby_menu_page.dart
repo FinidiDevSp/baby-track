@@ -2,10 +2,14 @@ import 'dart:io';
 
 import 'package:baby_track_app/features/baby/domain/models/baby.dart';
 import 'package:baby_track_app/features/baby/domain/models/baby_daily_log.dart';
+import 'package:baby_track_app/features/baby/domain/models/baby_medical_event.dart';
 import 'package:baby_track_app/features/baby/infrastructure/baby_daily_log_repository_impl.dart';
+import 'package:baby_track_app/features/baby/infrastructure/baby_medical_event_repository_impl.dart';
 import 'package:baby_track_app/features/baby/presentation/pages/baby_daily_log_page.dart';
+import 'package:baby_track_app/features/baby/presentation/pages/baby_growth_page.dart';
 import 'package:baby_track_app/features/baby/presentation/pages/baby_history_page.dart';
 import 'package:baby_track_app/features/baby/presentation/pages/baby_medical_calendar_page.dart';
+import 'package:baby_track_app/features/baby/presentation/pages/baby_statistics_page.dart';
 import 'package:baby_track_app/shared/widgets/app_bars/baby_gradient_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -21,10 +25,12 @@ class BabyMenuPage extends StatefulWidget {
 
 class _BabyMenuPageState extends State<BabyMenuPage> {
   final BabyDailyLogRepositoryImpl _dailyLogRepository = BabyDailyLogRepositoryImpl();
+  final BabyMedicalEventRepositoryImpl _medicalEventRepository = BabyMedicalEventRepositoryImpl();
 
   bool _isLoadingStats = false;
   List<BabyDailyLog> _todayLogs = const [];
   List<BabyDailyLog> _recentLogs = const [];
+  List<BabyMedicalEvent> _upcomingEvents = const [];
 
   @override
   void initState() {
@@ -41,6 +47,7 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
       setState(() {
         _todayLogs = const [];
         _recentLogs = const [];
+        _upcomingEvents = const [];
         _isLoadingStats = false;
       });
       return;
@@ -55,6 +62,10 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
       final today = DateTime(now.year, now.month, now.day);
       final todayLogs = await _dailyLogRepository.getLogsForBabyOnDate(widget.baby.id!, today);
       final recentLogs = await _dailyLogRepository.getRecentLogsForBaby(widget.baby.id!, limit: 60);
+      final upcomingEvents = await _medicalEventRepository.getUpcomingEventsForBaby(
+        widget.baby.id!,
+        within: const Duration(days: 30),
+      );
 
       if (!mounted) {
         return;
@@ -63,6 +74,7 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
       setState(() {
         _todayLogs = todayLogs;
         _recentLogs = recentLogs;
+        _upcomingEvents = upcomingEvents;
       });
     } finally {
       if (mounted) {
@@ -102,6 +114,68 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
         return colorScheme.secondary;
       default:
         return colorScheme.tertiary;
+    }
+  }
+
+  String _formatAppointmentDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final appointmentDay = DateTime(date.year, date.month, date.day);
+
+    if (_isSameDay(appointmentDay, today)) {
+      return 'Hoy · ${DateFormat('HH:mm').format(date)}';
+    }
+
+    if (_isSameDay(appointmentDay, today.add(const Duration(days: 1)))) {
+      return 'Mañana · ${DateFormat('HH:mm').format(date)}';
+    }
+
+    final difference = appointmentDay.difference(today).inDays;
+    if (difference > 1 && difference < 7) {
+      final weekday = DateFormat('EEEE', 'es').format(date);
+      return '${_capitalize(weekday)} · ${DateFormat('HH:mm').format(date)}';
+    }
+
+    return DateFormat('d MMM yyyy · HH:mm', 'es').format(date);
+  }
+
+  String _capitalize(String text) {
+    if (text.isEmpty) {
+      return text;
+    }
+    return text[0].toUpperCase() + text.substring(1);
+  }
+
+  String _eventTypeLabel(String type) {
+    switch (type) {
+      case 'vaccine':
+        return 'Vacuna';
+      case 'checkup':
+        return 'Chequeo pediátrico';
+      default:
+        return 'Otro cuidado';
+    }
+  }
+
+  Color _eventTypeColor(String type, ColorScheme colorScheme) {
+    switch (type) {
+      case 'vaccine':
+        return colorScheme.primary;
+      case 'checkup':
+        return colorScheme.secondary;
+      default:
+        return colorScheme.tertiary;
+    }
+  }
+
+  IconData _eventTypeIcon(String type) {
+    switch (type) {
+      case 'vaccine':
+        return Icons.vaccines_rounded;
+      case 'checkup':
+        return Icons.monitor_heart_rounded;
+      default:
+        return Icons.medical_services_rounded;
     }
   }
 
@@ -240,9 +314,23 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
                             ),
                           );
                         },
+                        onOpenStatistics: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => BabyStatisticsPage(baby: baby),
+                            ),
+                          );
+                        },
+                        onOpenGrowth: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => BabyGrowthPage(baby: baby),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 28),
-                      _buildStatsSection(colorScheme, textTheme),
+                      _buildStatsSection(context, colorScheme, textTheme),
                     ],
                   ),
                 ),
@@ -254,7 +342,7 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
     );
   }
 
-  Widget _buildStatsSection(ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildStatsSection(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
     if (widget.baby.id == null) {
       return Container(
         padding: const EdgeInsets.all(24),
@@ -305,6 +393,24 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (_upcomingEvents.isNotEmpty) ...[
+          _UpcomingAppointmentsCard(
+            events: _upcomingEvents,
+            colorScheme: colorScheme,
+            onViewCalendar: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => BabyMedicalCalendarPage(baby: widget.baby),
+                ),
+              );
+            },
+            eventTypeLabel: _eventTypeLabel,
+            eventTypeColor: (type) => _eventTypeColor(type, colorScheme),
+            formatDateLabel: _formatAppointmentDate,
+            eventTypeIcon: _eventTypeIcon,
+          ),
+          const SizedBox(height: 16),
+        ],
         _BabyStatsCard(
           title: 'Última actividad',
           children: [
@@ -456,11 +562,15 @@ class _BabyQuickActions extends StatefulWidget {
     required this.onCreateLog,
     required this.onViewHistory,
     required this.onOpenMedicalCalendar,
+    required this.onOpenStatistics,
+    required this.onOpenGrowth,
   });
 
   final VoidCallback onCreateLog;
   final VoidCallback onViewHistory;
   final VoidCallback onOpenMedicalCalendar;
+  final VoidCallback onOpenStatistics;
+  final VoidCallback onOpenGrowth;
 
   @override
   State<_BabyQuickActions> createState() => _BabyQuickActionsState();
@@ -503,6 +613,18 @@ class _BabyQuickActionsState extends State<_BabyQuickActions> {
         label: 'Agenda médica',
         color: colorScheme.tertiary,
         onTap: widget.onOpenMedicalCalendar,
+      ),
+      _QuickActionData(
+        icon: Icons.query_stats_rounded,
+        label: 'Estadísticas',
+        color: colorScheme.primaryContainer,
+        onTap: widget.onOpenStatistics,
+      ),
+      _QuickActionData(
+        icon: Icons.monitor_weight_rounded,
+        label: 'Crecimiento',
+        color: colorScheme.secondaryContainer,
+        onTap: widget.onOpenGrowth,
       ),
     ];
 
@@ -780,6 +902,177 @@ class _BabyStatTile extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _UpcomingAppointmentsCard extends StatelessWidget {
+  const _UpcomingAppointmentsCard({
+    required this.events,
+    required this.colorScheme,
+    required this.onViewCalendar,
+    required this.eventTypeLabel,
+    required this.eventTypeColor,
+    required this.formatDateLabel,
+    required this.eventTypeIcon,
+  });
+
+  final List<BabyMedicalEvent> events;
+  final ColorScheme colorScheme;
+  final VoidCallback onViewCalendar;
+  final String Function(String type) eventTypeLabel;
+  final Color Function(String type) eventTypeColor;
+  final String Function(DateTime date) formatDateLabel;
+  final IconData Function(String type) eventTypeIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final previewEvents = events.take(3).toList(growable: false);
+    final remaining = events.length - previewEvents.length;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colorScheme.primary.withOpacity(0.12),
+                ),
+                child: Icon(Icons.calendar_month_rounded, color: colorScheme.primary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Próximas citas',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: onViewCalendar,
+                icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                label: const Text('Ver agenda'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          for (var index = 0; index < previewEvents.length; index++)
+            Padding(
+              padding: EdgeInsets.only(bottom: index == previewEvents.length - 1 ? 0 : 14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: eventTypeColor(previewEvents[index].eventType).withOpacity(0.15),
+                    ),
+                    child: Icon(
+                      eventTypeIcon(previewEvents[index].eventType),
+                      color: eventTypeColor(previewEvents[index].eventType),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          previewEvents[index].title,
+                          style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          formatDateLabel(previewEvents[index].scheduledAt),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurface.withOpacity(0.75),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _EventTag(
+                              label: eventTypeLabel(previewEvents[index].eventType),
+                              color: eventTypeColor(previewEvents[index].eventType),
+                            ),
+                            if ((previewEvents[index].location ?? '').isNotEmpty)
+                              _EventTag(
+                                label: previewEvents[index].location!,
+                                color: colorScheme.outline,
+                                isOutlined: true,
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (remaining > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Y $remaining ${remaining == 1 ? 'cita adicional' : 'citas adicionales'} registradas.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EventTag extends StatelessWidget {
+  const _EventTag({
+    required this.label,
+    required this.color,
+    this.isOutlined = false,
+  });
+
+  final String label;
+  final Color color;
+  final bool isOutlined;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isOutlined ? Colors.transparent : color.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isOutlined ? color.withOpacity(0.6) : Colors.transparent),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: isOutlined ? color : color.withOpacity(0.9),
+            ),
+      ),
     );
   }
 }

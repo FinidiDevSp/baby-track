@@ -4,7 +4,7 @@ import 'package:sqflite/sqflite.dart';
 /// Sistema de migraciones siguiendo AGENTS.md
 class DatabaseHelper {
   static const String _databaseName = 'baby_track.db';
-  static const int _databaseVersion = 5; // Incrementado para agenda médica
+  static const int _databaseVersion = 6; // Incrementado para registros de crecimiento
 
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
@@ -35,6 +35,7 @@ class DatabaseHelper {
     await _createBabiesTableV2(db);
     await _createBabyDailyLogsTable(db);
     await _createBabyMedicalEventsTable(db);
+    await _createBabyGrowthRecordsTable(db);
     await _createIndices(db);
   }
 
@@ -62,6 +63,11 @@ class DatabaseHelper {
       await _upgradeToV5(db);
     }
 
+    // Migración de v5 a v6: crear tabla baby_growth_records
+    if (oldVersion < 6) {
+      await _upgradeToV6(db);
+    }
+
     // Futuras migraciones
     // if (oldVersion < 3) {
     //   await _upgradeToV3(db);
@@ -76,6 +82,8 @@ class DatabaseHelper {
         'CREATE INDEX IF NOT EXISTS idx_baby_daily_logs_baby_day ON baby_daily_logs(baby_id, log_day)');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_baby_medical_events_baby_date ON baby_medical_events(baby_id, scheduled_at)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_baby_growth_records_baby_date ON baby_growth_records(baby_id, recorded_at)');
   }
 
   /// Tabla v2 (con gender)
@@ -125,6 +133,25 @@ class DatabaseHelper {
         reminder_enabled INTEGER NOT NULL DEFAULT 1,
         reminder_minutes_before INTEGER NOT NULL DEFAULT 1440,
         reminder_sent_at INTEGER,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER,
+        FOREIGN KEY (baby_id) REFERENCES babies(id) ON DELETE CASCADE
+      )
+    ''');
+  }
+
+  Future<void> _createBabyGrowthRecordsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE baby_growth_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        baby_id INTEGER NOT NULL,
+        recorded_at INTEGER NOT NULL,
+        height_cm REAL,
+        weight_kg REAL,
+        head_circumference_cm REAL,
+        height_percentile REAL,
+        weight_percentile REAL,
+        head_circumference_percentile REAL,
         created_at INTEGER NOT NULL,
         updated_at INTEGER,
         FOREIGN KEY (baby_id) REFERENCES babies(id) ON DELETE CASCADE
@@ -189,6 +216,19 @@ class DatabaseHelper {
       print('Successfully created baby_medical_events table');
     } catch (e) {
       print('Error during v4 to v5 migration: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _upgradeToV6(Database db) async {
+    try {
+      await _createBabyGrowthRecordsTable(db);
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_baby_growth_records_baby_date ON baby_growth_records(baby_id, recorded_at)',
+      );
+      print('Successfully created baby_growth_records table');
+    } catch (e) {
+      print('Error during v5 to v6 migration: $e');
       rethrow;
     }
   }
