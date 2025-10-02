@@ -19,6 +19,7 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
   List<BabyDailyLog> _allLogs = [];
   final Map<String, List<BabyDailyLog>> _groupedLogs = {};
   final Set<String> _collapsedDays = {};
+  final Map<String, Set<String>> _dayFilters = {}; // day -> active filter types
   bool _isLoading = true;
 
   @override
@@ -69,6 +70,53 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
     _collapsedDays.removeWhere((day) => !_groupedLogs.containsKey(day));
   }
 
+  void _toggleFilter(String dayKey, String filterType) {
+    setState(() {
+      if (_dayFilters[dayKey] == null) {
+        _dayFilters[dayKey] = {};
+      }
+
+      if (_dayFilters[dayKey]!.contains(filterType)) {
+        _dayFilters[dayKey]!.remove(filterType);
+        if (_dayFilters[dayKey]!.isEmpty) {
+          _dayFilters.remove(dayKey);
+        }
+      } else {
+        _dayFilters[dayKey]!.add(filterType);
+      }
+    });
+  }
+
+  List<BabyDailyLog> _getFilteredLogs(String dayKey, List<BabyDailyLog> dayLogs) {
+    final activeFilters = _dayFilters[dayKey];
+    if (activeFilters == null || activeFilters.isEmpty) {
+      return dayLogs;
+    }
+
+    return dayLogs.where((log) {
+      for (final filter in activeFilters) {
+        switch (filter) {
+          case 'feed':
+            if ((log.intakeMl ?? 0) > 0) return true;
+            break;
+          case 'diaper':
+            if (log.didPoop) return true;
+            break;
+          case 'shower':
+            if (log.showered) return true;
+            break;
+          case 'vomit':
+            if (log.vomited) return true;
+            break;
+          case 'notes':
+            if (log.notes?.isNotEmpty == true) return true;
+            break;
+        }
+      }
+      return false;
+    }).toList();
+  }
+
   String _formatDayHeader(String dayKey) {
     final date = DateTime.parse(dayKey);
     final now = DateTime.now();
@@ -117,8 +165,8 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
       backgroundColor: Colors.transparent,
       elevation: 0,
       centerTitle: false,
-      toolbarHeight: 72,
-      leadingWidth: 64,
+      toolbarHeight: 100,
+      leadingWidth: 56,
       titleSpacing: 0,
       leading: Container(
         margin: const EdgeInsets.all(8),
@@ -129,7 +177,7 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
         ),
         child: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
           tooltip: 'Volver',
         ),
       ),
@@ -272,33 +320,31 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
       final notesCount = dayLogs.where((log) => log.notes?.isNotEmpty == true).length;
 
       summaryChips.addAll([
-        _buildSummaryChip(
-          icon: Icons.event_note_rounded,
-          label: _pluralize(dayLogs.length, singular: 'registro', plural: 'registros'),
-          color: colorScheme.primary,
-          colorScheme: colorScheme,
-          textTheme: textTheme,
-        ),
         if (feedLogs.isNotEmpty)
-          _buildSummaryChip(
+          _buildFilterChip(
+            dayKey: dayKey,
+            filterType: 'feed',
             icon: Icons.local_drink_rounded,
             label:
-                '${_pluralize(feedLogs.length, singular: 'toma', plural: 'tomas')} · ${totalMl} ml',
+                '${_pluralize(feedLogs.length, singular: 'toma', plural: 'tomas')} · $totalMl ml',
             color: colorScheme.primary,
             colorScheme: colorScheme,
             textTheme: textTheme,
           ),
         if (diaperCount > 0)
-          _buildSummaryChip(
+          _buildFilterChip(
+            dayKey: dayKey,
+            filterType: 'diaper',
             icon: Icons.baby_changing_station_rounded,
-            label:
-                _pluralize(diaperCount, singular: 'pañal sucio', plural: 'pañales sucios'),
+            label: _pluralize(diaperCount, singular: 'pañal sucio', plural: 'pañales sucios'),
             color: colorScheme.secondary,
             colorScheme: colorScheme,
             textTheme: textTheme,
           ),
         if (showerCount > 0)
-          _buildSummaryChip(
+          _buildFilterChip(
+            dayKey: dayKey,
+            filterType: 'shower',
             icon: Icons.bathtub_rounded,
             label: _pluralize(showerCount, singular: 'baño', plural: 'baños'),
             color: colorScheme.tertiary,
@@ -306,7 +352,9 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
             textTheme: textTheme,
           ),
         if (vomitCount > 0)
-          _buildSummaryChip(
+          _buildFilterChip(
+            dayKey: dayKey,
+            filterType: 'vomit',
             icon: Icons.sick_rounded,
             label: _pluralize(vomitCount, singular: 'vómito', plural: 'vómitos'),
             color: colorScheme.error,
@@ -314,7 +362,9 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
             textTheme: textTheme,
           ),
         if (notesCount > 0)
-          _buildSummaryChip(
+          _buildFilterChip(
+            dayKey: dayKey,
+            filterType: 'notes',
             icon: Icons.sticky_note_2_rounded,
             label: _pluralize(notesCount, singular: 'nota', plural: 'notas'),
             color: colorScheme.outline,
@@ -323,7 +373,7 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
           ),
       ]);
 
-      timelineLogs = [...dayLogs]
+      timelineLogs = _getFilteredLogs(dayKey, [...dayLogs])
         ..sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
     }
 
@@ -411,11 +461,7 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
             ),
             if (!isCollapsed && summaryChips.isNotEmpty) ...[
               const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: summaryChips,
-              ),
+              Wrap(spacing: 8, runSpacing: 8, children: summaryChips),
             ],
             if (!isCollapsed) ...[
               const SizedBox(height: 20),
@@ -484,7 +530,7 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceVariant.withOpacity(0.35),
+                  color: colorScheme.surfaceContainerHighest.withOpacity(0.35),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.4)),
                 ),
@@ -510,11 +556,7 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
                     ),
                     if (eventChips.isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: eventChips,
-                      ),
+                      Wrap(spacing: 8, runSpacing: 8, children: eventChips),
                     ],
                     if (eventChips.isEmpty && (notes?.isNotEmpty != true)) ...[
                       const SizedBox(height: 8),
@@ -532,9 +574,7 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
                         decoration: BoxDecoration(
                           color: colorScheme.surface.withOpacity(0.9),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: colorScheme.outlineVariant.withOpacity(0.3),
-                          ),
+                          border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.3)),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -568,11 +608,7 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
     );
   }
 
-  List<Widget> _buildEventChips(
-    BabyDailyLog log,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-  ) {
+  List<Widget> _buildEventChips(BabyDailyLog log, ColorScheme colorScheme, TextTheme textTheme) {
     final chips = <Widget>[];
     final intake = log.intakeMl ?? 0;
 
@@ -580,7 +616,7 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
       chips.add(
         _buildEventChip(
           icon: Icons.local_drink_rounded,
-          label: '${intake} ml',
+          label: '$intake ml',
           color: colorScheme.primary,
           colorScheme: colorScheme,
           textTheme: textTheme,
@@ -624,33 +660,47 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
     return chips;
   }
 
-  Widget _buildSummaryChip({
+  Widget _buildFilterChip({
+    required String dayKey,
+    required String filterType,
     required IconData icon,
     required String label,
     required Color color,
     required ColorScheme colorScheme,
     required TextTheme textTheme,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+    final isActive = _dayFilters[dayKey]?.contains(filterType) ?? false;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _toggleFilter(dayKey, filterType),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurface.withOpacity(0.75),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: isActive ? color.withOpacity(0.25) : color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isActive ? color.withOpacity(0.5) : color.withOpacity(0.2),
+              width: isActive ? 1.5 : 1,
             ),
           ),
-        ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: isActive ? color : color.withOpacity(0.8)),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: textTheme.bodySmall?.copyWith(
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+                  color: isActive ? colorScheme.onSurface : colorScheme.onSurface.withOpacity(0.75),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -685,11 +735,7 @@ class _BabyHistoryPageState extends State<BabyHistoryPage> {
     );
   }
 
-  String _pluralize(
-    int count, {
-    required String singular,
-    required String plural,
-  }) {
+  String _pluralize(int count, {required String singular, required String plural}) {
     return '$count ${count == 1 ? singular : plural}';
   }
 
