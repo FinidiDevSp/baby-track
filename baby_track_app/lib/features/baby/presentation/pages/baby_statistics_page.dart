@@ -142,13 +142,13 @@ class _BabyStatisticsPageState extends State<BabyStatisticsPage> {
     }).toList();
 
     final lastSeven = summaries.take(7).toList();
-    final weeklyAverageFeed = lastSeven.isEmpty
-        ? 0
+    final double weeklyAverageFeed = lastSeven.isEmpty
+        ? 0.0
         : lastSeven.map((summary) => summary.feedCount).reduce((a, b) => a + b) /
             lastSeven.length;
 
-    final weeklyAverageIntake = lastSeven.isEmpty
-        ? 0
+    final double weeklyAverageIntake = lastSeven.isEmpty
+        ? 0.0
         : lastSeven.map((summary) => summary.totalIntake).reduce((a, b) => a + b) /
             lastSeven.length;
 
