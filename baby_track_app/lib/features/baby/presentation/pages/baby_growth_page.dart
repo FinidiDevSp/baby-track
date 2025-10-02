@@ -3,6 +3,7 @@ import 'package:baby_track_app/features/baby/domain/models/baby_growth_record.da
 import 'package:baby_track_app/features/baby/infrastructure/baby_growth_record_repository_impl.dart';
 import 'package:baby_track_app/shared/widgets/app_bars/baby_gradient_app_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 class BabyGrowthPage extends StatefulWidget {
@@ -17,13 +18,30 @@ class BabyGrowthPage extends StatefulWidget {
 class _BabyGrowthPageState extends State<BabyGrowthPage> {
   final BabyGrowthRecordRepositoryImpl _repository = BabyGrowthRecordRepositoryImpl();
 
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _heightController = TextEditingController();
+  final TextEditingController _weightController = TextEditingController();
+  final TextEditingController _headCircumferenceController = TextEditingController();
+
   bool _isLoading = false;
+  bool _isSaving = false;
   List<BabyGrowthRecord> _records = const [];
+  late DateTime _selectedDate;
 
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _selectedDate = DateTime(now.year, now.month, now.day);
     _loadRecords();
+  }
+
+  @override
+  void dispose() {
+    _heightController.dispose();
+    _weightController.dispose();
+    _headCircumferenceController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadRecords() async {
@@ -84,28 +102,114 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
                   ),
                 ],
               )
-            : _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _records.isEmpty
-                    ? ListView(
-                        physics:
-                            const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-                        children: const [
-                          _EmptyStateCard(
-                            icon: Icons.auto_graph_rounded,
-                            title: 'Aún no hay mediciones',
-                            message:
-                                'Registra las revisiones pediátricas para ver aquí la evolución de peso, talla y perímetro craneal.',
-                          ),
-                        ],
-                      )
-                    : ListView(
-                        physics:
-                            const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-                        children: _buildGroupedRecords(theme),
+            : ListView(
+                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                children: [
+                  _buildFormCard(theme, colorScheme),
+                  const SizedBox(height: 32),
+                  if (_isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_records.isEmpty)
+                    const _EmptyStateCard(
+                      icon: Icons.auto_graph_rounded,
+                      title: 'Aún no hay mediciones',
+                      message:
+                          'Registra las revisiones pediátricas para ver aquí la evolución de peso, talla y perímetro craneal.',
+                    )
+                  else
+                    ..._buildGroupedRecords(theme),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _buildFormCard(ThemeData theme, ColorScheme colorScheme) {
+    return Form(
+      key: _formKey,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.6)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 18,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.monitor_weight_outlined, color: colorScheme.primary),
+                const SizedBox(width: 12),
+                Text(
+                  'Registrar nueva medición',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Selecciona la fecha de control y captura los valores entregados por el pediatra.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface.withOpacity(0.7),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.tonalIcon(
+              onPressed: _isSaving ? null : _pickDate,
+              icon: const Icon(Icons.calendar_today_rounded),
+              label: Text(_formatSelectedDate(_selectedDate)),
+            ),
+            const SizedBox(height: 24),
+            _MeasurementInputField(
+              controller: _heightController,
+              label: 'Estatura (cm)',
+              helper: 'Ej. 68.4',
+              icon: Icons.height_rounded,
+            ),
+            const SizedBox(height: 16),
+            _MeasurementInputField(
+              controller: _headCircumferenceController,
+              label: 'Perímetro craneal (cm)',
+              helper: 'Ej. 41.2',
+              icon: Icons.circle_outlined,
+            ),
+            const SizedBox(height: 16),
+            _MeasurementInputField(
+              controller: _weightController,
+              label: 'Peso (kg)',
+              helper: 'Ej. 7.25',
+              icon: Icons.scale_rounded,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: _isSaving ? null : _saveRecord,
+              icon: _isSaving
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(colorScheme.onPrimary),
                       ),
+                    )
+                  : const Icon(Icons.save_rounded),
+              label: Text(_isSaving ? 'Guardando...' : 'Guardar medición'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -136,6 +240,164 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
           ),
         )
         .toList(growable: false);
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      locale: const Locale('es'),
+      helpText: 'Selecciona la fecha del control',
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDate = DateTime(picked.year, picked.month, picked.day);
+      });
+    }
+  }
+
+  Future<void> _saveRecord() async {
+    if (widget.baby.id == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Debes registrar al bebé antes de guardar mediciones.'),
+          ),
+        );
+      return;
+    }
+
+    if (_formKey.currentState?.validate() != true) {
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+
+    final height = _parseMeasurement(_heightController.text);
+    final head = _parseMeasurement(_headCircumferenceController.text);
+    final weight = _parseMeasurement(_weightController.text);
+
+    final record = BabyGrowthRecord(
+      babyId: widget.baby.id!,
+      recordedAt: _selectedDate,
+      heightCm: height,
+      headCircumferenceCm: head,
+      weightKg: weight,
+      createdAt: DateTime.now(),
+    );
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      await _repository.createRecord(record);
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('Medición guardada para ${_formatSelectedDate(_selectedDate)}'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+      _resetForm();
+      await _loadRecords();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('Error al guardar la medición: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  void _resetForm() {
+    _formKey.currentState?.reset();
+    _heightController.clear();
+    _headCircumferenceController.clear();
+    _weightController.clear();
+    final now = DateTime.now();
+    setState(() {
+      _selectedDate = DateTime(now.year, now.month, now.day);
+    });
+  }
+
+  double? _parseMeasurement(String raw) {
+    final normalized = raw.replaceAll(',', '.');
+    return double.tryParse(normalized);
+  }
+
+  String _formatSelectedDate(DateTime date) {
+    final formatter = DateFormat("d 'de' MMMM yyyy", 'es');
+    final formatted = formatter.format(date);
+    return formatted[0].toUpperCase() + formatted.substring(1);
+  }
+}
+
+class _MeasurementInputField extends StatelessWidget {
+  const _MeasurementInputField({
+    required this.controller,
+    required this.label,
+    required this.helper,
+    required this.icon,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final String helper;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return TextFormField(
+      controller: controller,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      textInputAction: TextInputAction.next,
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+      ],
+      validator: (value) {
+        final trimmed = value?.trim() ?? '';
+        if (trimmed.isEmpty) {
+          return 'Ingresa un valor válido';
+        }
+        final parsed = double.tryParse(trimmed.replaceAll(',', '.'));
+        if (parsed == null || parsed <= 0) {
+          return 'El valor debe ser mayor a 0';
+        }
+        return null;
+      },
+      decoration: InputDecoration(
+        labelText: label,
+        helperText: helper,
+        prefixIcon: Icon(icon, color: colorScheme.primary),
+        filled: true,
+      ),
+    );
   }
 }
 
