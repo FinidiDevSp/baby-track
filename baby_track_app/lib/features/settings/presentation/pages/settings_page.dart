@@ -71,4 +71,91 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Widget _buildSettingsContent() {
+    final theme = Theme.of(context);
+    final selectedIndex = _themeService.selectedColorIndex;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text(
+          'Tema de color',
+          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 12),
+        ...List<Widget>.generate(ThemeService.availableThemes.length, (int index) {
+          final option = ThemeService.availableThemes[index];
+          final bool isSelected = index == selectedIndex;
+
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: isSelected ? option.primary : theme.dividerColor,
+                width: isSelected ? 2 : 1,
+              ),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => _saveColorSelection(index),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [option.primary, option.secondary],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            option.name,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            option.description,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: isSelected
+                          ? Icon(
+                              Icons.check_circle,
+                              key: ValueKey<int>(index),
+                              color: option.primary,
+                            )
+                          : Icon(
+                              Icons.circle_outlined,
+                              key: ValueKey<String>('unselected-$index'),
+                              color: theme.disabledColor,
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
 }
