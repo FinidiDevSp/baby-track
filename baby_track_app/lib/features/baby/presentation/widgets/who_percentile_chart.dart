@@ -85,6 +85,7 @@ class _WhoChartPainter extends CustomPainter {
   static const double _paddingRight = 16;
   static const double _paddingTop = 16;
   static const double _paddingBottom = 28;
+  static const double _focusSpanMonths = 14;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -98,16 +99,63 @@ class _WhoChartPainter extends CustomPainter {
       return;
     }
 
-    final minAge = data.first.ageMonths;
-    final maxAge = data.last.ageMonths;
-    double minValue = data.first.p3;
-    double maxValue = data.first.p97;
-    for (final entry in data) {
+    final dataMinAge = data.first.ageMonths;
+    final dataMaxAge = data.last.ageMonths;
+
+    double minAge = dataMinAge;
+    double maxAge = dataMaxAge;
+    final totalSpan = dataMaxAge - dataMinAge;
+    if (totalSpan > _focusSpanMonths) {
+      final clampedAge = ageMonths.clamp(dataMinAge, dataMaxAge);
+      var start = clampedAge - _focusSpanMonths / 2;
+      var end = clampedAge + _focusSpanMonths / 2;
+
+      if (start < dataMinAge) {
+        end += dataMinAge - start;
+        start = dataMinAge;
+      }
+      if (end > dataMaxAge) {
+        start -= end - dataMaxAge;
+        end = dataMaxAge;
+      }
+
+      minAge = start.clamp(dataMinAge, dataMaxAge - _focusSpanMonths);
+      maxAge = (minAge + _focusSpanMonths).clamp(minAge, dataMaxAge);
+      if (maxAge - minAge < _focusSpanMonths) {
+        minAge = math.max(dataMinAge, dataMaxAge - _focusSpanMonths);
+        maxAge = dataMaxAge;
+      }
+    }
+
+    final visibleData = data
+        .where((entry) => entry.ageMonths >= minAge && entry.ageMonths <= maxAge)
+        .toList(growable: true);
+
+    if (visibleData.isNotEmpty) {
+      final firstIndex = data.indexOf(visibleData.first);
+      if (visibleData.first.ageMonths > minAge && firstIndex > 0) {
+        visibleData.insert(0, data[firstIndex - 1]);
+      }
+      final lastIndex = data.indexOf(visibleData.last);
+      if (visibleData.last.ageMonths < maxAge && lastIndex < data.length - 1) {
+        visibleData.add(data[lastIndex + 1]);
+      }
+    }
+
+    final points = visibleData.length >= 2 ? visibleData : data;
+    if (points == data) {
+      minAge = dataMinAge;
+      maxAge = dataMaxAge;
+    }
+
+    double minValue = points.first.p3;
+    double maxValue = points.first.p97;
+    for (final entry in points) {
       minValue = math.min(minValue, entry.p3);
       maxValue = math.max(maxValue, entry.p97);
     }
     final range = maxValue - minValue;
-    final verticalPadding = range * 0.08;
+    final verticalPadding = range * 0.05;
     minValue -= verticalPadding;
     maxValue += verticalPadding;
 
@@ -147,8 +195,8 @@ class _WhoChartPainter extends CustomPainter {
     }
 
     final percentilePaths = List.generate(percentileColors.length, (_) => Path());
-    for (var entryIndex = 0; entryIndex < data.length; entryIndex++) {
-      final entry = data[entryIndex];
+    for (var entryIndex = 0; entryIndex < points.length; entryIndex++) {
+      final entry = points[entryIndex];
       final x = toChartX(entry.ageMonths);
       final values = entry.percentileValues;
       for (var i = 0; i < values.length; i++) {
