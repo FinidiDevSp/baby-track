@@ -20,7 +20,8 @@ class BabyGrowthPage extends StatefulWidget {
 class _BabyGrowthPageState extends State<BabyGrowthPage> {
   final BabyGrowthRecordRepositoryImpl _repository = BabyGrowthRecordRepositoryImpl();
 
-  final _formKey = GlobalKey<FormState>();
+  final _createFormKey = GlobalKey<FormState>();
+  final _editFormKey = GlobalKey<FormState>();
   final TextEditingController _heightController = TextEditingController();
   final TextEditingController _weightController = TextEditingController();
   final TextEditingController _headCircumferenceController = TextEditingController();
@@ -129,7 +130,7 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
 
   Widget _buildFormCard(ThemeData theme, ColorScheme colorScheme) {
     return Form(
-      key: _formKey,
+      key: _createFormKey,
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
@@ -194,7 +195,11 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
-              onPressed: _isSaving ? null : _saveRecord,
+              onPressed: _isSaving
+                  ? null
+                  : () async {
+                      await _saveRecord(formKey: _createFormKey);
+                    },
               icon: _isSaving
                   ? SizedBox(
                       width: 16,
@@ -266,18 +271,21 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
     }
   }
 
-  Future<void> _saveRecord({BabyGrowthRecord? editingRecord}) async {
+  Future<bool> _saveRecord({
+    BabyGrowthRecord? editingRecord,
+    required GlobalKey<FormState> formKey,
+  }) async {
     if (widget.baby.id == null) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
           const SnackBar(content: Text('Debes registrar al bebé antes de guardar mediciones.')),
         );
-      return;
+      return false;
     }
 
-    if (_formKey.currentState?.validate() != true) {
-      return;
+    if (formKey.currentState?.validate() != true) {
+      return false;
     }
 
     FocusScope.of(context).unfocus();
@@ -307,7 +315,7 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
         await _repository.createRecord(record);
       }
       if (!mounted) {
-        return;
+        return false;
       }
 
       ScaffoldMessenger.of(context)
@@ -325,18 +333,17 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
 
       _resetForm();
       await _loadRecords();
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      return true;
     } catch (e) {
       if (!mounted) {
-        return;
+        return false;
       }
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(content: Text('Error al guardar la medición: $e'), backgroundColor: Colors.red),
         );
+      return false;
     } finally {
       if (mounted) {
         setState(() {
@@ -344,10 +351,12 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
         });
       }
     }
+    return false;
   }
 
   void _resetForm() {
-    _formKey.currentState?.reset();
+    _createFormKey.currentState?.reset();
+    _editFormKey.currentState?.reset();
     _heightController.clear();
     _headCircumferenceController.clear();
     _weightController.clear();
@@ -362,14 +371,22 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
     return double.tryParse(normalized);
   }
 
+  String _formatMeasurementForInput(double? value) {
+    if (value == null) {
+      return '';
+    }
+    final decimals = value % 1 == 0 ? 0 : 2;
+    return value.toStringAsFixed(decimals);
+  }
+
   String _formatSelectedDate(DateTime date) {
     final formatter = DateFormat("d 'de' MMMM yyyy", 'es');
     final formatted = formatter.format(date);
     return formatted[0].toUpperCase() + formatted.substring(1);
   }
 
-  Widget _buildGrowthForm({BabyGrowthRecord? editingRecord}) {
-    final theme = Theme.of(context);
+  Widget _buildGrowthForm(BuildContext modalContext, {BabyGrowthRecord? editingRecord}) {
+    final theme = Theme.of(modalContext);
     final colorScheme = theme.colorScheme;
 
     return DraggableScrollableSheet(
@@ -429,7 +446,7 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
             ),
             const SizedBox(height: 24),
             Form(
-              key: _formKey,
+              key: _editFormKey,
               child: Column(
                 children: [
                   _MeasurementInputField(
@@ -457,7 +474,17 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
-              onPressed: _isSaving ? null : () => _saveRecord(editingRecord: editingRecord),
+              onPressed: _isSaving
+                  ? null
+                  : () async {
+                      final saved = await _saveRecord(
+                        editingRecord: editingRecord,
+                        formKey: _editFormKey,
+                      );
+                      if (saved && modalContext.mounted) {
+                        Navigator.of(modalContext).pop();
+                      }
+                    },
               icon: _isSaving
                   ? SizedBox(
                       width: 16,
@@ -478,21 +505,20 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
   }
 
   Future<void> _editRecord(BabyGrowthRecord record) async {
-    // Pre-fill the form with existing record data
-    _heightController.text = record.heightCm.toString();
-    _weightController.text = record.weightKg.toString();
-    _headCircumferenceController.text = record.headCircumferenceCm.toString();
-    _selectedDate = record.recordedAt;
+    _heightController.text = _formatMeasurementForInput(record.heightCm);
+    _weightController.text = _formatMeasurementForInput(record.weightKg);
+    _headCircumferenceController.text = _formatMeasurementForInput(record.headCircumferenceCm);
+    setState(() {
+      _selectedDate = record.recordedAt;
+    });
 
-    // Show the form for editing
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _buildGrowthForm(editingRecord: record),
+      builder: (modalContext) => _buildGrowthForm(modalContext, editingRecord: record),
     );
 
-    // Clean up form after closing modal
     if (mounted) {
       _resetForm();
     }
@@ -771,7 +797,7 @@ class _GrowthRecordCardState extends State<_GrowthRecordCard> {
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
-                      height: 320,
+                      height: 360,
                       child: TabBarView(
                         physics: const BouncingScrollPhysics(),
                         children: [
