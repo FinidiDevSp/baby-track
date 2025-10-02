@@ -92,7 +92,7 @@ class _BabyMedicalCalendarPageState extends State<BabyMedicalCalendarPage> {
       content: Text(
         triggeredEvents.length == 1
             ? 'Recordatorio automático: ${triggeredEvents.first.title} hoy a las '
-                '${DateFormat('HH:mm').format(triggeredEvents.first.scheduledAt)}'
+                  '${DateFormat('HH:mm').format(triggeredEvents.first.scheduledAt)}'
             : 'Tienes ${triggeredEvents.length} cuidados médicos próximos. Revísalos en la agenda.',
       ),
       behavior: SnackBarBehavior.floating,
@@ -111,9 +111,11 @@ class _BabyMedicalCalendarPageState extends State<BabyMedicalCalendarPage> {
 
     setState(() {
       _events = _events
-          .map((event) => triggeredEvents.any((triggered) => triggered.id == event.id)
-              ? event.copyWith(reminderSentAt: DateTime.now())
-              : event)
+          .map(
+            (event) => triggeredEvents.any((triggered) => triggered.id == event.id)
+                ? event.copyWith(reminderSentAt: DateTime.now())
+                : event,
+          )
           .toList();
     });
   }
@@ -126,9 +128,7 @@ class _BabyMedicalCalendarPageState extends State<BabyMedicalCalendarPage> {
 
   List<BabyMedicalEvent> get _upcomingEvents {
     final now = DateTime.now();
-    return _events
-        .where((event) => event.scheduledAt.isAfter(now))
-        .toList()
+    return _events.where((event) => event.scheduledAt.isAfter(now)).toList()
       ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
   }
 
@@ -157,7 +157,8 @@ class _BabyMedicalCalendarPageState extends State<BabyMedicalCalendarPage> {
       return;
     }
 
-    final baseEvent = event ??
+    final baseEvent =
+        event ??
         BabyMedicalEvent(
           babyId: widget.baby.id!,
           title: '',
@@ -173,14 +174,8 @@ class _BabyMedicalCalendarPageState extends State<BabyMedicalCalendarPage> {
       isScrollControlled: true,
       builder: (context) {
         return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: _EventFormSheet(
-            baby: widget.baby,
-            event: baseEvent,
-            eventLabels: _eventLabels,
-          ),
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: _EventFormSheet(baby: widget.baby, event: baseEvent, eventLabels: _eventLabels),
         );
       },
     );
@@ -235,212 +230,592 @@ class _BabyMedicalCalendarPageState extends State<BabyMedicalCalendarPage> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Agenda médica'),
-            Text(
-              widget.baby.name,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
-                  ),
-            ),
-          ],
-        ),
-      ),
+      backgroundColor: colorScheme.surface,
+      appBar: _buildCustomAppBar(context, colorScheme),
       floatingActionButton: widget.baby.id == null
           ? null
           : FloatingActionButton.extended(
               onPressed: _openEventForm,
               icon: const Icon(Icons.add_alarm_rounded),
-              label: const Text('Nuevo evento'),
+              label: const Text('Nueva cita'),
             ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadEvents,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 120),
+              child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  _buildHeader(theme),
-                  const SizedBox(height: 20),
-                  _buildCalendar(theme),
-                  const SizedBox(height: 24),
-                  if (_upcomingEvents.isNotEmpty) _buildUpcomingSection(theme),
-                  if (_upcomingEvents.isNotEmpty) const SizedBox(height: 24),
-                  _buildSelectedDaySection(theme, colorScheme),
-                ],
+                child: Column(
+                  children: [
+                    const SizedBox(height: 20),
+                    _buildCompactCalendar(colorScheme),
+                    const SizedBox(height: 24),
+                    _buildAppointmentsSections(colorScheme),
+                    const SizedBox(height: 100), // Space for FAB
+                  ],
+                ),
               ),
             ),
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
-    final textTheme = theme.textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Planifica vacunas y citas de ${widget.baby.name}',
-          style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Activa recordatorios automáticos para preparar con antelación cada visita médica.',
-          style: textTheme.bodyMedium,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCalendar(ThemeData theme) {
-    final firstDate = widget.baby.birthDate.subtract(const Duration(days: 30));
-    final lastDate = DateTime.now().add(const Duration(days: 365 * 5));
-    return Card(
+  PreferredSizeWidget _buildCustomAppBar(BuildContext context, ColorScheme colorScheme) {
+    return AppBar(
+      backgroundColor: Colors.transparent,
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: CalendarDatePicker(
-          key: ValueKey(_selectedDay.millisecondsSinceEpoch),
-          firstDate: firstDate,
-          lastDate: lastDate,
-          initialDate: _selectedDay,
-          onDateChanged: (date) {
-            setState(() {
-              _selectedDay = DateTime(date.year, date.month, date.day);
-            });
-          },
-          currentDate: DateTime.now(),
-          onDisplayedMonthChanged: (date) {
-            setState(() {
-              _focusedDay = date;
-            });
-          },
+      centerTitle: false,
+      toolbarHeight: 50,
+      leadingWidth: 56,
+      titleSpacing: 0,
+      leading: Container(
+        margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
+          tooltip: 'Volver',
+        ),
+      ),
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              colorScheme.primary,
+              colorScheme.primary.withOpacity(0.85),
+              colorScheme.secondary,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+      ),
+      title: Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Agenda Médica',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 20,
+                letterSpacing: 0.5,
+              ),
+            ),
+            Text(
+              widget.baby.name,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.85),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildUpcomingSection(ThemeData theme) {
-    final textTheme = theme.textTheme;
-    final events = _upcomingEvents.take(5).toList();
+  Widget _buildOverviewCards(ColorScheme colorScheme) {
+    final now = DateTime.now();
+    final upcomingEvents = _events.where((e) => e.scheduledAt.isAfter(now)).toList()
+      ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    final pastEvents = _events.where((e) => e.scheduledAt.isBefore(now)).toList()
+      ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Próximos recordatorios',
-          style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [colorScheme.primary.withOpacity(0.1), colorScheme.surface],
         ),
-        const SizedBox(height: 12),
-        ...events.map((event) => _UpcomingEventTile(
-              event: event,
-              label: _eventLabels[event.eventType] ?? 'Evento',
-              color: _eventColor(event.eventType, theme),
-              onTap: () {
-                setState(() {
-                  _selectedDay = DateTime(
-                    event.scheduledAt.year,
-                    event.scheduledAt.month,
-                    event.scheduledAt.day,
-                  );
-                  _focusedDay = _selectedDay;
-                });
-              },
-            )),
-      ],
-    );
-  }
-
-  Widget _buildSelectedDaySection(ThemeData theme, ColorScheme colorScheme) {
-    final textTheme = theme.textTheme;
-    final events = _eventsForSelectedDay;
-
-    if (events.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: colorScheme.outlineVariant),
-        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.calendar_today_rounded, color: colorScheme.primary),
-                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    _formatDayLabel(_selectedDay),
-                    style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  child: _buildOverviewCard(
+                    title: 'Próximas',
+                    count: upcomingEvents.length,
+                    icon: Icons.schedule_rounded,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildOverviewCard(
+                    title: 'Realizadas',
+                    count: pastEvents.length,
+                    icon: Icons.check_circle_rounded,
+                    color: colorScheme.secondary,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              'No hay eventos médicos registrados para este día.',
-              style: textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: widget.baby.id == null ? null : _openEventForm,
-              icon: const Icon(Icons.add),
-              label: const Text('Crear evento'),
-            ),
+            if (upcomingEvents.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              _buildNextAppointmentCard(upcomingEvents.first, colorScheme),
+            ],
           ],
         ),
-      );
-    }
+      ),
+    );
+  }
+
+  Widget _buildOverviewCard({
+    required String title,
+    required int count,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            count.toString(),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: color),
+          ),
+          Text(
+            title,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNextAppointmentCard(BabyMedicalEvent event, ColorScheme colorScheme) {
+    final color = _eventColor(event.eventType, Theme.of(context));
+    final daysUntil = event.scheduledAt.difference(DateTime.now()).inDays;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
+            child: Icon(
+              event.eventType == 'vaccine' ? Icons.vaccines : Icons.medical_services,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Próxima cita',
+                  style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  event.title,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  '${DateFormat('d MMM yyyy · HH:mm', 'es').format(event.scheduledAt)} ${daysUntil > 0 ? '($daysUntil días)' : '(Hoy)'}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactCalendar(ColorScheme colorScheme) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                DateFormat('MMMM yyyy', 'es').format(_focusedDay),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _focusedDay = DateTime(_focusedDay.year, _focusedDay.month - 1);
+                      });
+                    },
+                    icon: Icon(Icons.chevron_left, color: colorScheme.primary),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _focusedDay = DateTime(_focusedDay.year, _focusedDay.month + 1);
+                      });
+                    },
+                    icon: Icon(Icons.chevron_right, color: colorScheme.primary),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildCompactCalendarGrid(colorScheme),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactCalendarGrid(ColorScheme colorScheme) {
+    final now = DateTime.now();
+    final firstDayOfMonth = DateTime(_focusedDay.year, _focusedDay.month, 1);
+    final lastDayOfMonth = DateTime(_focusedDay.year, _focusedDay.month + 1, 0);
+    final firstDayWeekday = firstDayOfMonth.weekday % 7;
+    final daysInMonth = lastDayOfMonth.day;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Week headers
         Row(
-          children: [
-            Icon(Icons.event_available_rounded, color: colorScheme.primary),
-            const SizedBox(width: 12),
-            Text(
-              _formatDayLabel(_selectedDay),
-              style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ...events.map(
-          (event) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Dismissible(
-              key: ValueKey(event.id ?? event.title + event.scheduledAt.toIso8601String()),
-              direction: DismissDirection.endToStart,
-              background: Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.error,
-                  borderRadius: BorderRadius.circular(16),
+          children: ['D', 'L', 'M', 'X', 'J', 'V', 'S']
+              .map(
+                (day) => Expanded(
+                  child: Center(
+                    child: Text(
+                      day,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ),
                 ),
-                child: const Icon(Icons.delete_outline, color: Colors.white),
+              )
+              .toList(),
+        ),
+        const SizedBox(height: 8),
+        // Calendar grid
+        ...List.generate(6, (weekIndex) {
+          return Row(
+            children: List.generate(7, (dayIndex) {
+              final dayNumber = weekIndex * 7 + dayIndex - firstDayWeekday + 1;
+
+              if (dayNumber < 1 || dayNumber > daysInMonth) {
+                return const Expanded(child: SizedBox(height: 40));
+              }
+
+              final date = DateTime(_focusedDay.year, _focusedDay.month, dayNumber);
+              final hasEvents = _events.any((e) => _isSameDay(e.scheduledAt, date));
+              final isSelected = _isSameDay(date, _selectedDay);
+              final isToday = _isSameDay(date, now);
+
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedDay = date;
+                    });
+                  },
+                  child: Container(
+                    height: 40,
+                    margin: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? colorScheme.primary
+                          : isToday
+                          ? colorScheme.primary.withOpacity(0.1)
+                          : hasEvents
+                          ? colorScheme.secondary.withOpacity(0.2)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      border: hasEvents && !isSelected
+                          ? Border.all(color: colorScheme.secondary, width: 1.5)
+                          : null,
+                    ),
+                    child: Stack(
+                      children: [
+                        Center(
+                          child: Text(
+                            dayNumber.toString(),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: isSelected
+                                  ? Colors.white
+                                  : isToday
+                                  ? colorScheme.primary
+                                  : hasEvents
+                                  ? colorScheme.secondary
+                                  : Colors.black87,
+                            ),
+                          ),
+                        ),
+                        if (hasEvents && !isSelected)
+                          Positioned(
+                            top: 2,
+                            right: 2,
+                            child: Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: colorScheme.secondary,
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          );
+        }).where((row) {
+          // Only show weeks that have days from current month
+          return row.children.any((child) => (child as Expanded).child is! SizedBox);
+        }),
+      ],
+    );
+  }
+
+  Widget _buildAppointmentsSections(ColorScheme colorScheme) {
+    final now = DateTime.now();
+    final upcomingEvents = _events.where((e) => e.scheduledAt.isAfter(now)).toList()
+      ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    final pastEvents = _events.where((e) => e.scheduledAt.isBefore(now)).toList()
+      ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (upcomingEvents.isNotEmpty) ...[
+            _buildSectionTitle('Próximas Citas', upcomingEvents.length, colorScheme.primary),
+            const SizedBox(height: 12),
+            ...upcomingEvents.take(3).map((event) => _buildEventCard(event, colorScheme, true)),
+            if (upcomingEvents.length > 3) ...[
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    // TODO: Navigate to full upcoming list
+                  },
+                  child: Text('Ver todas (${upcomingEvents.length - 3} más)'),
+                ),
               ),
-              confirmDismiss: (_) async {
-                await _deleteEvent(event);
-                return false;
-              },
-              child: _EventCard(
-                event: event,
-                label: _eventLabels[event.eventType] ?? 'Evento',
-                color: _eventColor(event.eventType, theme),
-                onTap: () => _openEventForm(event: event),
+            ],
+            const SizedBox(height: 24),
+          ],
+          if (pastEvents.isNotEmpty) ...[
+            _buildSectionTitle('Historial', pastEvents.length, colorScheme.secondary),
+            const SizedBox(height: 12),
+            ...pastEvents.take(3).map((event) => _buildEventCard(event, colorScheme, false)),
+            if (pastEvents.length > 3) ...[
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    // TODO: Navigate to full past list
+                  },
+                  child: Text('Ver todo el historial (${pastEvents.length - 3} más)'),
+                ),
               ),
-            ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, int count, Color color) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            title.contains('Próximas') ? Icons.schedule : Icons.history,
+            color: color,
+            size: 18,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            count.toString(),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildEventCard(BabyMedicalEvent event, ColorScheme colorScheme, bool isUpcoming) {
+    final color = _eventColor(event.eventType, Theme.of(context));
+    final now = DateTime.now();
+    final daysDiff = isUpcoming
+        ? event.scheduledAt.difference(now).inDays
+        : now.difference(event.scheduledAt).inDays;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              event.eventType == 'vaccine' ? Icons.vaccines : Icons.medical_services,
+              color: color,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  event.title,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  DateFormat('d MMM yyyy · HH:mm', 'es').format(event.scheduledAt),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                if (daysDiff >= 0) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    isUpcoming
+                        ? (daysDiff == 0 ? 'Hoy' : 'En $daysDiff días')
+                        : (daysDiff == 0 ? 'Hoy' : 'Hace $daysDiff días'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isUpcoming ? color : Colors.grey[500],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (action) {
+              if (action == 'edit') {
+                _openEventForm(event: event);
+              } else if (action == 'delete') {
+                _deleteEvent(event);
+              }
+            },
+            itemBuilder: (context) {
+              final now = DateTime.now();
+              final canDelete = isUpcoming || now.difference(event.scheduledAt).inDays >= 7;
+
+              return [
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [Icon(Icons.edit, size: 16), SizedBox(width: 8), Text('Editar')],
+                  ),
+                ),
+                if (canDelete)
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete, size: 16),
+                        SizedBox(width: 8),
+                        Text('Eliminar'),
+                      ],
+                    ),
+                  ),
+              ];
+            },
+            child: Icon(Icons.more_vert, color: Colors.grey[400], size: 18),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -554,9 +929,7 @@ class _EventCard extends StatelessWidget {
                   children: [
                     const Icon(Icons.location_on_outlined, size: 18),
                     const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(event.location!, style: textTheme.bodyMedium),
-                    ),
+                    Expanded(child: Text(event.location!, style: textTheme.bodyMedium)),
                   ],
                 ),
               ],
@@ -581,11 +954,7 @@ class _EventCard extends StatelessWidget {
 }
 
 class _EventFormSheet extends StatefulWidget {
-  const _EventFormSheet({
-    required this.baby,
-    required this.event,
-    required this.eventLabels,
-  });
+  const _EventFormSheet({required this.baby, required this.event, required this.eventLabels});
 
   final Baby baby;
   final BabyMedicalEvent event;
@@ -653,14 +1022,26 @@ class _EventFormSheetState extends State<_EventFormSheet> {
 
     if (pickedTime == null) {
       setState(() {
-        _scheduledAt = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, _scheduledAt.hour, _scheduledAt.minute);
+        _scheduledAt = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          _scheduledAt.hour,
+          _scheduledAt.minute,
+        );
         _dateController.text = DateFormat('d MMMM yyyy · HH:mm', 'es').format(_scheduledAt);
       });
       return;
     }
 
     setState(() {
-      _scheduledAt = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute);
+      _scheduledAt = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
       _dateController.text = DateFormat('d MMMM yyyy · HH:mm', 'es').format(_scheduledAt);
     });
   }
@@ -733,10 +1114,7 @@ class _EventFormSheetState extends State<_EventFormSheet> {
               decoration: const InputDecoration(labelText: 'Tipo de evento'),
               items: widget.eventLabels.entries
                   .map(
-                    (entry) => DropdownMenuItem<String>(
-                      value: entry.key,
-                      child: Text(entry.value),
-                    ),
+                    (entry) => DropdownMenuItem<String>(value: entry.key, child: Text(entry.value)),
                   )
                   .toList(),
               onChanged: (value) {
