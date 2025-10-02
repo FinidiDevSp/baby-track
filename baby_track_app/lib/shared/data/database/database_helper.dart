@@ -4,7 +4,7 @@ import 'package:sqflite/sqflite.dart';
 /// Sistema de migraciones siguiendo AGENTS.md
 class DatabaseHelper {
   static const String _databaseName = 'baby_track.db';
-  static const int _databaseVersion = 4; // Incrementado para columna de vómito en registros diarios
+  static const int _databaseVersion = 5; // Incrementado para agenda médica
 
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
@@ -34,6 +34,7 @@ class DatabaseHelper {
   Future<void> _onCreate(Database db, int version) async {
     await _createBabiesTableV2(db);
     await _createBabyDailyLogsTable(db);
+    await _createBabyMedicalEventsTable(db);
     await _createIndices(db);
   }
 
@@ -56,6 +57,11 @@ class DatabaseHelper {
       await _upgradeToV4(db);
     }
 
+    // Migración de v4 a v5: crear tabla baby_medical_events
+    if (oldVersion < 5) {
+      await _upgradeToV5(db);
+    }
+
     // Futuras migraciones
     // if (oldVersion < 3) {
     //   await _upgradeToV3(db);
@@ -68,6 +74,8 @@ class DatabaseHelper {
     await db.execute('CREATE INDEX IF NOT EXISTS idx_babies_birth_date ON babies(birth_date)');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_baby_daily_logs_baby_day ON baby_daily_logs(baby_id, log_day)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_baby_medical_events_baby_date ON baby_medical_events(baby_id, scheduled_at)');
   }
 
   /// Tabla v2 (con gender)
@@ -97,6 +105,26 @@ class DatabaseHelper {
         showered INTEGER NOT NULL DEFAULT 0,
         vomited INTEGER NOT NULL DEFAULT 0,
         notes TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER,
+        FOREIGN KEY (baby_id) REFERENCES babies(id) ON DELETE CASCADE
+      )
+    ''');
+  }
+
+  Future<void> _createBabyMedicalEventsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE baby_medical_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        baby_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        scheduled_at INTEGER NOT NULL,
+        location TEXT,
+        notes TEXT,
+        reminder_enabled INTEGER NOT NULL DEFAULT 1,
+        reminder_minutes_before INTEGER NOT NULL DEFAULT 1440,
+        reminder_sent_at INTEGER,
         created_at INTEGER NOT NULL,
         updated_at INTEGER,
         FOREIGN KEY (baby_id) REFERENCES babies(id) ON DELETE CASCADE
@@ -148,6 +176,19 @@ class DatabaseHelper {
       }
     } catch (e) {
       print('Error during v3 to v4 migration: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _upgradeToV5(Database db) async {
+    try {
+      await _createBabyMedicalEventsTable(db);
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_baby_medical_events_baby_date ON baby_medical_events(baby_id, scheduled_at)',
+      );
+      print('Successfully created baby_medical_events table');
+    } catch (e) {
+      print('Error during v4 to v5 migration: $e');
       rethrow;
     }
   }

@@ -5,6 +5,7 @@ import 'package:baby_track_app/features/baby/domain/models/baby_daily_log.dart';
 import 'package:baby_track_app/features/baby/infrastructure/baby_daily_log_repository_impl.dart';
 import 'package:baby_track_app/features/baby/presentation/pages/baby_daily_log_page.dart';
 import 'package:baby_track_app/features/baby/presentation/pages/baby_history_page.dart';
+import 'package:baby_track_app/features/baby/presentation/pages/baby_medical_calendar_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -310,6 +311,13 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
                             ),
                           );
                         },
+                        onOpenMedicalCalendar: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => BabyMedicalCalendarPage(baby: baby),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 28),
                       _buildStatsSection(colorScheme, textTheme),
@@ -532,35 +540,65 @@ class _BabyQuickActions extends StatelessWidget {
   const _BabyQuickActions({
     required this.onCreateLog,
     required this.onViewHistory,
+    required this.onOpenMedicalCalendar,
   });
 
   final VoidCallback onCreateLog;
   final VoidCallback onViewHistory;
+  final VoidCallback onOpenMedicalCalendar;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Row(
-      children: [
-        Expanded(
-          child: _QuickActionButton(
-            icon: Icons.edit_note_rounded,
-            label: 'Registro',
-            color: colorScheme.primary,
-            onTap: onCreateLog,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _QuickActionButton(
-            icon: Icons.history_rounded,
-            label: 'Historial',
-            color: colorScheme.secondary,
-            onTap: onViewHistory,
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final crossAxisCount = constraints.maxWidth > 520 ? 3 : 2;
+        final spacing = 12.0;
+        final itemWidth = (constraints.maxWidth - spacing * (crossAxisCount - 1)) / crossAxisCount;
+
+        Widget buildItem({
+          required IconData icon,
+          required String label,
+          required Color color,
+          required VoidCallback onTap,
+        }) {
+          return SizedBox(
+            width: itemWidth,
+            child: _QuickActionButton(
+              icon: icon,
+              label: label,
+              color: color,
+              onTap: onTap,
+            ),
+          );
+        }
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            buildItem(
+              icon: Icons.edit_note_rounded,
+              label: 'Registro',
+              color: colorScheme.primary,
+              onTap: onCreateLog,
+            ),
+            buildItem(
+              icon: Icons.history_rounded,
+              label: 'Historial',
+              color: colorScheme.secondary,
+              onTap: onViewHistory,
+            ),
+            buildItem(
+              icon: Icons.vaccines_outlined,
+              label: 'Agenda médica',
+              color: colorScheme.tertiary,
+              onTap: onOpenMedicalCalendar,
+            ),
+          ],
+        );
+      },
     );
   }
 }
