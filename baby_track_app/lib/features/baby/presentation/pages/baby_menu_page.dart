@@ -53,8 +53,7 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
       final todayLogs = await _dailyLogRepository.getLogsForBabyOnDate(widget.baby.id!, today);
-      final recentLogs =
-          await _dailyLogRepository.getRecentLogsForBaby(widget.baby.id!, limit: 60);
+      final recentLogs = await _dailyLogRepository.getRecentLogsForBaby(widget.baby.id!, limit: 60);
 
       if (!mounted) {
         return;
@@ -141,9 +140,9 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
       final hours = difference.inHours;
       final minutes = difference.inMinutes.remainder(60);
       if (minutes == 0) {
-        return 'hace ${hours} h';
+        return 'hace $hours h';
       }
-      return 'hace ${hours} h ${minutes} min';
+      return 'hace $hours h $minutes min';
     }
 
     final days = difference.inDays;
@@ -204,9 +203,7 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
           ),
         ),
         flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: _buildAppBarGradient(colorScheme),
-          ),
+          decoration: BoxDecoration(gradient: _buildAppBarGradient(colorScheme)),
         ),
         title: Row(
           children: [
@@ -260,26 +257,18 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
               Positioned(
                 top: -60,
                 right: -20,
-                child: _DecorativeBubble(
-                  size: 180,
-                  color: colorScheme.secondary.withOpacity(0.25),
-                ),
+                child: _DecorativeBubble(size: 180, color: colorScheme.secondary.withOpacity(0.25)),
               ),
               Positioned(
                 bottom: -40,
                 left: -30,
-                child: _DecorativeBubble(
-                  size: 140,
-                  color: colorScheme.primary.withOpacity(0.18),
-                ),
+                child: _DecorativeBubble(size: 140, color: colorScheme.primary.withOpacity(0.18)),
               ),
               RefreshIndicator(
                 onRefresh: _loadStats,
                 displacement: 32,
                 child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
+                  physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -294,22 +283,18 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
                       const SizedBox(height: 24),
                       _BabyQuickActions(
                         onCreateLog: () async {
-                          await Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => BabyDailyLogPage(baby: baby),
-                            ),
-                          );
+                          await Navigator.of(
+                            context,
+                          ).push(MaterialPageRoute(builder: (_) => BabyDailyLogPage(baby: baby)));
                           if (!mounted) {
                             return;
                           }
                           await _loadStats();
                         },
                         onViewHistory: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => BabyHistoryPage(baby: baby),
-                            ),
-                          );
+                          Navigator.of(
+                            context,
+                          ).push(MaterialPageRoute(builder: (_) => BabyHistoryPage(baby: baby)));
                         },
                         onOpenMedicalCalendar: () {
                           Navigator.of(context).push(
@@ -373,8 +358,7 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
       intakeDetail = '${lastIntake.intakeMl} ml';
     }
 
-    final todayIntakes =
-        _todayLogs.where((log) => (log.intakeMl ?? 0) > 0).toList(growable: false);
+    final todayIntakes = _todayLogs.where((log) => (log.intakeMl ?? 0) > 0).toList(growable: false);
     final feedCount = todayIntakes.length;
     final totalIntake = todayIntakes.fold<int>(0, (sum, log) => sum + (log.intakeMl ?? 0));
     final poopCount = _todayLogs.where((log) => log.didPoop).length;
@@ -426,7 +410,7 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
               title: 'Tomas registradas',
               subtitle: feedCount == 0
                   ? 'Aún no hay tomas registradas hoy.'
-                  : '${_formatCountLabel(feedCount, singular: 'toma', plural: 'tomas')} · ${totalIntake} ml',
+                  : '${_formatCountLabel(feedCount, singular: 'toma', plural: 'tomas')} · $totalIntake ml',
             ),
             const SizedBox(height: 12),
             _BabyStatTile(
@@ -503,10 +487,7 @@ class _BabySummaryCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _BabyAvatar(
-                  baby: baby,
-                  genderColor: genderColor,
-                ),
+                _BabyAvatar(baby: baby, genderColor: genderColor),
                 const SizedBox(width: 20),
                 Expanded(
                   child: Column(
@@ -520,10 +501,7 @@ class _BabySummaryCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      _InfoPill(
-                        icon: Icons.calendar_month_rounded,
-                        label: ageLabel,
-                      ),
+                      _InfoPill(icon: Icons.calendar_month_rounded, label: ageLabel),
                     ],
                   ),
                 ),
@@ -660,10 +638,7 @@ class _QuickActionButton extends StatelessWidget {
 }
 
 class _BabyAvatar extends StatelessWidget {
-  const _BabyAvatar({
-    required this.baby,
-    required this.genderColor,
-  });
+  const _BabyAvatar({required this.baby, required this.genderColor});
 
   final Baby baby;
   final Color genderColor;
@@ -687,8 +662,8 @@ class _BabyAvatar extends StatelessWidget {
                   baby.gender == 'M'
                       ? Icons.boy_rounded
                       : baby.gender == 'F'
-                          ? Icons.girl_rounded
-                          : Icons.child_care,
+                      ? Icons.girl_rounded
+                      : Icons.child_care,
                   color: genderColor,
                   size: 36,
                 ),
@@ -697,8 +672,8 @@ class _BabyAvatar extends StatelessWidget {
                 baby.gender == 'M'
                     ? Icons.boy_rounded
                     : baby.gender == 'F'
-                        ? Icons.girl_rounded
-                        : Icons.child_care,
+                    ? Icons.girl_rounded
+                    : Icons.child_care,
                 color: genderColor,
                 size: 36,
               ),
@@ -729,10 +704,9 @@ class _InfoPill extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[700],
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: Colors.grey[700]),
           ),
         ],
       ),
@@ -766,10 +740,7 @@ class _BabyStatsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-          ),
+          Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
           ...children,
         ],
@@ -802,10 +773,7 @@ class _BabyStatTile extends StatelessWidget {
         Container(
           width: 40,
           height: 40,
-          decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.14),
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: iconColor.withOpacity(0.14), shape: BoxShape.circle),
           child: Icon(icon, color: iconColor, size: 22),
         ),
         const SizedBox(width: 12),
@@ -813,17 +781,14 @@ class _BabyStatTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-              ),
+              Text(title, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
               Text(
                 subtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurface.withOpacity(0.7),
-                      height: 1.4,
-                    ),
+                  color: colorScheme.onSurface.withOpacity(0.7),
+                  height: 1.4,
+                ),
               ),
             ],
           ),
