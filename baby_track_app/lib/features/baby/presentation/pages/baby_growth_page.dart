@@ -1,6 +1,8 @@
+import 'package:baby_track_app/features/baby/domain/growth/who_growth_standards.dart';
 import 'package:baby_track_app/features/baby/domain/models/baby.dart';
 import 'package:baby_track_app/features/baby/domain/models/baby_growth_record.dart';
 import 'package:baby_track_app/features/baby/infrastructure/baby_growth_record_repository_impl.dart';
+import 'package:baby_track_app/features/baby/presentation/widgets/who_percentile_chart.dart';
 import 'package:baby_track_app/shared/widgets/app_bars/baby_gradient_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -234,7 +236,14 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
                   style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
-                ...entry.value.map((record) => _GrowthRecordCard(record: record)).toList(),
+                ...entry.value
+                    .map(
+                      (record) => _GrowthRecordCard(
+                        record: record,
+                        baby: widget.baby,
+                      ),
+                    )
+                    .toList(),
               ],
             ),
           ),
@@ -402,9 +411,13 @@ class _MeasurementInputField extends StatelessWidget {
 }
 
 class _GrowthRecordCard extends StatelessWidget {
-  const _GrowthRecordCard({required this.record});
+  const _GrowthRecordCard({required this.record, required this.baby});
 
   final BabyGrowthRecord record;
+  final Baby baby;
+
+  BabyGender get _babyGender =>
+      baby.gender.toUpperCase() == 'F' ? BabyGender.female : BabyGender.male;
 
   String _formatDate(DateTime date) {
     final formatter = DateFormat('d MMM yyyy', 'es');
@@ -418,234 +431,257 @@ class _GrowthRecordCard extends StatelessWidget {
     return '${value.toStringAsFixed(value % 1 == 0 ? 0 : 1)} $unit';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+  String _formatAgeDetail() {
+    final birth = baby.birthDate;
+    final measurementDate = record.recordedAt;
+    if (measurementDate.isBefore(birth)) {
+      return 'Edad no disponible';
+    }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 14),
-          ),
-        ],
-        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.6)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.calendar_today_rounded, color: colorScheme.primary),
-              const SizedBox(width: 12),
-              Text(
-                _formatDate(record.recordedAt),
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _MeasurementBlock(
-            title: 'Perímetro craneal',
-            valueLabel: _formatMeasurement(record.headCircumferenceCm, 'cm'),
-            percentile: record.headCircumferencePercentile,
-            color: colorScheme.primary,
-          ),
-          const SizedBox(height: 16),
-          _MeasurementBlock(
-            title: 'Altura',
-            valueLabel: _formatMeasurement(record.heightCm, 'cm'),
-            percentile: record.heightPercentile,
-            color: colorScheme.secondary,
-          ),
-          const SizedBox(height: 16),
-          _MeasurementBlock(
-            title: 'Peso',
-            valueLabel: _formatMeasurement(record.weightKg, 'kg'),
-            percentile: record.weightPercentile,
-            color: colorScheme.tertiary,
-          ),
-        ],
-      ),
+    var years = measurementDate.year - birth.year;
+    var months = measurementDate.month - birth.month;
+    var days = measurementDate.day - birth.day;
+
+    if (days < 0) {
+      final previousMonth = DateTime(measurementDate.year, measurementDate.month, 0);
+      days += previousMonth.day;
+      months -= 1;
+    }
+
+    if (months < 0) {
+      years -= 1;
+      months += 12;
+    }
+
+    final parts = <String>[];
+    if (years > 0) {
+      parts.add('$years ${years == 1 ? 'año' : 'años'}');
+    }
+    if (months > 0) {
+      parts.add('$months ${months == 1 ? 'mes' : 'meses'}');
+    }
+    if (days > 0 || parts.isEmpty) {
+      parts.add('$days ${days == 1 ? 'día' : 'días'}');
+    }
+    return parts.join(', ');
+  }
+
+  double _ageInMonths() {
+    final difference = record.recordedAt.difference(baby.birthDate);
+    if (difference.isNegative) {
+      return 0;
+    }
+    return difference.inDays / 30.4375;
+  }
+
+  double? _percentileFor(double? measurement, GrowthMetric metric) {
+    return WhoGrowthStandards.percentileForMeasurement(
+      measurement: measurement,
+      ageMonths: _ageInMonths(),
+      gender: _babyGender,
+      metric: metric,
     );
   }
-}
-
-class _MeasurementBlock extends StatelessWidget {
-  const _MeasurementBlock({
-    required this.title,
-    required this.valueLabel,
-    required this.percentile,
-    required this.color,
-  });
-
-  final String title;
-  final String valueLabel;
-  final double? percentile;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+    final ageDetail = _formatAgeDetail();
+    final ageMonths = _ageInMonths();
+
+    final headPercentile =
+        _percentileFor(record.headCircumferenceCm, GrowthMetric.headCircumference);
+    final heightPercentile = _percentileFor(record.heightCm, GrowthMetric.height);
+    final weightPercentile = _percentileFor(record.weightKg, GrowthMetric.weight);
+
+    return DefaultTabController(
+      length: 3,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 20,
+              offset: const Offset(0, 14),
+            ),
+          ],
+          border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.6)),
         ),
-        const SizedBox(height: 6),
-        Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.stacked_line_chart_rounded, color: color),
-            const SizedBox(width: 8),
-            Text(
-              valueLabel,
-              style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+            Row(
+              children: [
+                Icon(Icons.calendar_today_rounded, color: colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '${_formatDate(record.recordedAt)} · $ageDetail',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            TabBar(
+              labelColor: colorScheme.primary,
+              labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+              unselectedLabelColor: colorScheme.onSurface.withOpacity(0.6),
+              indicatorColor: colorScheme.primary,
+              indicatorWeight: 2.5,
+              isScrollable: true,
+              labelStyle: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+              tabs: const [
+                Tab(text: 'Perímetro craneal'),
+                Tab(text: 'Altura'),
+                Tab(text: 'Peso'),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 320,
+              child: TabBarView(
+                physics: const BouncingScrollPhysics(),
+                children: [
+                  _GrowthMetricTab(
+                    metric: GrowthMetric.headCircumference,
+                    title: 'Perímetro craneal',
+                    unit: 'cm',
+                    icon: Icons.circle_outlined,
+                    measurement: record.headCircumferenceCm,
+                    measurementLabel:
+                        _formatMeasurement(record.headCircumferenceCm, 'cm'),
+                    percentile: headPercentile,
+                    gender: _babyGender,
+                    ageMonths: ageMonths,
+                    color: colorScheme.primary,
+                  ),
+                  _GrowthMetricTab(
+                    metric: GrowthMetric.height,
+                    title: 'Altura',
+                    unit: 'cm',
+                    icon: Icons.height_rounded,
+                    measurement: record.heightCm,
+                    measurementLabel: _formatMeasurement(record.heightCm, 'cm'),
+                    percentile: heightPercentile,
+                    gender: _babyGender,
+                    ageMonths: ageMonths,
+                    color: colorScheme.secondary,
+                  ),
+                  _GrowthMetricTab(
+                    metric: GrowthMetric.weight,
+                    title: 'Peso',
+                    unit: 'kg',
+                    icon: Icons.scale_rounded,
+                    measurement: record.weightKg,
+                    measurementLabel: _formatMeasurement(record.weightKg, 'kg'),
+                    percentile: weightPercentile,
+                    gender: _babyGender,
+                    ageMonths: ageMonths,
+                    color: colorScheme.tertiary,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        if (percentile != null)
-          _PercentileBar(percentile: percentile!, color: color)
-        else
-          Text(
-            'Añade los percentiles para visualizar la curva de crecimiento.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurface.withOpacity(0.6),
-            ),
-          ),
-      ],
+      ),
     );
   }
 }
 
-class _PercentileBar extends StatelessWidget {
-  const _PercentileBar({required this.percentile, required this.color});
+class _GrowthMetricTab extends StatelessWidget {
+  const _GrowthMetricTab({
+    required this.metric,
+    required this.title,
+    required this.unit,
+    required this.icon,
+    required this.measurement,
+    required this.measurementLabel,
+    required this.percentile,
+    required this.gender,
+    required this.ageMonths,
+    required this.color,
+  });
 
-  final double percentile;
+  final GrowthMetric metric;
+  final String title;
+  final String unit;
+  final IconData icon;
+  final double? measurement;
+  final String measurementLabel;
+  final double? percentile;
+  final BabyGender gender;
+  final double ageMonths;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final textTheme = theme.textTheme;
-    final clamped = percentile.clamp(0, 100).toDouble();
+    final colorScheme = theme.colorScheme;
+
+    final percentileLabel = percentile == null
+        ? 'Sin percentil disponible'
+        : 'Percentil ${percentile!.clamp(0, 100).round()} (OMS)';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          height: 48,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final widthFactor = constraints.maxWidth == 0
-                  ? 0.0
-                  : (clamped / 100).clamp(0.0, 1.0);
-              final markerPosition = constraints.maxWidth * widthFactor;
-
-              return Stack(
-                children: [
-                  Container(
-                    height: 48,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: LinearGradient(
-                        colors: [color.withOpacity(0.2), color.withOpacity(0.05)],
-                      ),
-                      border: Border.all(color: color.withOpacity(0.35)),
-                    ),
-                  ),
-                  Positioned.fill(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: FractionallySizedBox(
-                                  widthFactor: widthFactor,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.centerLeft,
-                                        end: Alignment.centerRight,
-                                        colors: [color, color.withOpacity(0.6)],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: markerPosition.clamp(12.0, constraints.maxWidth - 12),
-                    top: 8,
-                    child: _PercentileMarker(color: color),
-                  ),
-                ],
-              );
-            },
+        Row(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Medición: $measurementLabel',
+          style: theme.textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          percentileLabel,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurface.withOpacity(0.7),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceVariant.withOpacity(0.25),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: WhoPercentileChart(
+                  metric: metric,
+                  gender: gender,
+                  measurement: measurement,
+                  ageMonths: ageMonths,
+                ),
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 8),
         Text(
-          'Percentil ${clamped.toStringAsFixed(0)}',
-          style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
-        ),
-      ],
-    );
-  }
-}
-
-class _PercentileMarker extends StatelessWidget {
-  const _PercentileMarker({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: 4,
-          height: 20,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(2),
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.4),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 1.5),
+          'Fuente: Estándares de crecimiento OMS 2006.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
       ],
