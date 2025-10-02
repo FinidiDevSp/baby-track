@@ -1,6 +1,7 @@
 import 'package:baby_track_app/features/baby/domain/models/baby.dart';
 import 'package:baby_track_app/features/baby/domain/models/baby_medical_event.dart';
 import 'package:baby_track_app/features/baby/infrastructure/baby_medical_event_repository_impl.dart';
+import 'package:baby_track_app/shared/widgets/app_bars/baby_gradient_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -231,7 +232,12 @@ class _BabyMedicalCalendarPageState extends State<BabyMedicalCalendarPage> {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: _buildCustomAppBar(context, colorScheme),
+      appBar: BabyGradientAppBar(
+        title: 'Agenda Médica',
+        subtitle: widget.baby.name,
+        icon: Icons.medical_information_rounded,
+        toolbarHeight: 72,
+      ),
       floatingActionButton: widget.baby.id == null
           ? null
           : FloatingActionButton.extended(
@@ -256,69 +262,6 @@ class _BabyMedicalCalendarPageState extends State<BabyMedicalCalendarPage> {
                 ),
               ),
             ),
-    );
-  }
-
-  PreferredSizeWidget _buildCustomAppBar(BuildContext context, ColorScheme colorScheme) {
-    return AppBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      centerTitle: false,
-      toolbarHeight: 50,
-      leadingWidth: 56,
-      titleSpacing: 0,
-      leading: Container(
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.2)),
-        ),
-        child: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
-          tooltip: 'Volver',
-        ),
-      ),
-      flexibleSpace: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              colorScheme.primary,
-              colorScheme.primary.withOpacity(0.85),
-              colorScheme.secondary,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-      ),
-      title: Padding(
-        padding: const EdgeInsets.only(right: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Agenda Médica',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 20,
-                letterSpacing: 0.5,
-              ),
-            ),
-            Text(
-              widget.baby.name,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.85),
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

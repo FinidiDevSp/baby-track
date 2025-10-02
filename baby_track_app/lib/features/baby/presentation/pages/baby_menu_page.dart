@@ -6,6 +6,7 @@ import 'package:baby_track_app/features/baby/infrastructure/baby_daily_log_repos
 import 'package:baby_track_app/features/baby/presentation/pages/baby_daily_log_page.dart';
 import 'package:baby_track_app/features/baby/presentation/pages/baby_history_page.dart';
 import 'package:baby_track_app/features/baby/presentation/pages/baby_medical_calendar_page.dart';
+import 'package:baby_track_app/shared/widgets/app_bars/baby_gradient_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -70,17 +71,6 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
         });
       }
     }
-  }
-
-  LinearGradient _buildAppBarGradient(ColorScheme colorScheme) {
-    final blendedColor =
-        Color.lerp(colorScheme.primary, colorScheme.secondary, 0.5) ?? colorScheme.primary;
-
-    return LinearGradient(
-      colors: [colorScheme.primary, blendedColor, colorScheme.secondary],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    );
   }
 
   String _formatAge() {
@@ -185,63 +175,10 @@ class _BabyMenuPageState extends State<BabyMenuPage> {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: false,
-        leading: Container(
-          margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.2)),
-          ),
-          child: IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-            tooltip: 'Volver',
-          ),
-        ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(gradient: _buildAppBarGradient(colorScheme)),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withOpacity(0.3)),
-              ),
-              child: const Icon(Icons.child_friendly_rounded, color: Colors.white, size: 22),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Panel del bebé',
-                    style: textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  Text(
-                    'Organiza sus cuidados diarios',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: Colors.white.withOpacity(0.85),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      appBar: const BabyGradientAppBar(
+        title: 'Panel del bebé',
+        subtitle: 'Organiza sus cuidados diarios',
+        icon: Icons.child_friendly_rounded,
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -514,7 +451,7 @@ class _BabySummaryCard extends StatelessWidget {
   }
 }
 
-class _BabyQuickActions extends StatelessWidget {
+class _BabyQuickActions extends StatefulWidget {
   const _BabyQuickActions({
     required this.onCreateLog,
     required this.onViewHistory,
@@ -526,59 +463,108 @@ class _BabyQuickActions extends StatelessWidget {
   final VoidCallback onOpenMedicalCalendar;
 
   @override
+  State<_BabyQuickActions> createState() => _BabyQuickActionsState();
+}
+
+class _BabyQuickActionsState extends State<_BabyQuickActions> {
+  late final PageController _pageController;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 0.82);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final quickActions = <_QuickActionData>[
+      _QuickActionData(
+        icon: Icons.edit_note_rounded,
+        label: 'Registro',
+        color: colorScheme.primary,
+        onTap: widget.onCreateLog,
+      ),
+      _QuickActionData(
+        icon: Icons.history_rounded,
+        label: 'Historial',
+        color: colorScheme.secondary,
+        onTap: widget.onViewHistory,
+      ),
+      _QuickActionData(
+        icon: Icons.vaccines_outlined,
+        label: 'Agenda médica',
+        color: colorScheme.tertiary,
+        onTap: widget.onOpenMedicalCalendar,
+      ),
+    ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth > 520 ? 3 : 2;
-        final spacing = 12.0;
-        final itemWidth = (constraints.maxWidth - spacing * (crossAxisCount - 1)) / crossAxisCount;
-
-        Widget buildItem({
-          required IconData icon,
-          required String label,
-          required Color color,
-          required VoidCallback onTap,
-        }) {
-          return SizedBox(
-            width: itemWidth,
-            child: _QuickActionButton(
-              icon: icon,
-              label: label,
-              color: color,
-              onTap: onTap,
-            ),
-          );
-        }
-
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: [
-            buildItem(
-              icon: Icons.edit_note_rounded,
-              label: 'Registro',
-              color: colorScheme.primary,
-              onTap: onCreateLog,
-            ),
-            buildItem(
-              icon: Icons.history_rounded,
-              label: 'Historial',
-              color: colorScheme.secondary,
-              onTap: onViewHistory,
-            ),
-            buildItem(
-              icon: Icons.vaccines_outlined,
-              label: 'Agenda médica',
-              color: colorScheme.tertiary,
-              onTap: onOpenMedicalCalendar,
-            ),
-          ],
-        );
-      },
+    return Column(
+      children: [
+        SizedBox(
+          height: 120,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: quickActions.length,
+            onPageChanged: (index) => setState(() => _currentPage = index),
+            physics: const BouncingScrollPhysics(),
+            itemBuilder: (context, index) {
+              final action = quickActions[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: _QuickActionButton(
+                  icon: action.icon,
+                  label: action.label,
+                  color: action.color,
+                  onTap: action.onTap,
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(quickActions.length, (index) {
+            final isActive = index == _currentPage;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: isActive ? 20 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: isActive
+                    ? colorScheme.primary.withOpacity(0.9)
+                    : colorScheme.primary.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+            );
+          }),
+        ),
+      ],
     );
   }
+}
+
+class _QuickActionData {
+  const _QuickActionData({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
 }
 
 class _QuickActionButton extends StatelessWidget {

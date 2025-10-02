@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:baby_track_app/features/baby/domain/models/baby.dart';
 import 'package:baby_track_app/features/baby/infrastructure/baby_repository_impl.dart';
+import 'package:baby_track_app/shared/widgets/app_bars/baby_gradient_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -232,7 +233,13 @@ class _BabyRegistrationPageState extends State<BabyRegistrationPage> {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: _buildCustomAppBar(context, colorScheme),
+      appBar: BabyGradientAppBar(
+        title: widget.babyToEdit != null ? 'Editar bebé' : 'Nuevo bebé',
+        subtitle: 'Información básica',
+        icon: widget.babyToEdit != null
+            ? Icons.edit_rounded
+            : Icons.baby_changing_station_rounded,
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -292,83 +299,6 @@ class _BabyRegistrationPageState extends State<BabyRegistrationPage> {
     );
   }
 
-  /// AppBar personalizado siguiendo estándares UI/UX de AGENTS.md
-  PreferredSizeWidget _buildCustomAppBar(BuildContext context, ColorScheme colorScheme) {
-    return AppBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      centerTitle: false,
-      leading: Container(
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.2)),
-        ),
-        child: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-          tooltip: 'Volver',
-        ),
-      ),
-      flexibleSpace: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              colorScheme.primary,
-              colorScheme.primary.withOpacity(0.85),
-              colorScheme.secondary,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-      ),
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withOpacity(0.3)),
-            ),
-            child: Icon(
-              widget.babyToEdit != null ? Icons.edit_rounded : Icons.baby_changing_station_rounded,
-              color: Colors.white,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  widget.babyToEdit != null ? 'Editar bebé' : 'Nuevo bebé',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                Text(
-                  'Información básica',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _RegistrationCard extends StatelessWidget {
