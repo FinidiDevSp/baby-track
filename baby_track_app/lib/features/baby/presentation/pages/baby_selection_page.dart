@@ -3,6 +3,7 @@ import 'package:baby_track_app/features/baby/infrastructure/baby_repository_impl
 import 'package:baby_track_app/features/baby/presentation/pages/baby_list_page.dart';
 import 'package:baby_track_app/features/baby/presentation/pages/baby_registration_page.dart';
 import 'package:baby_track_app/features/settings/presentation/pages/settings_page.dart';
+import 'package:baby_track_app/shared/widgets/app_bars/baby_gradient_app_bar.dart';
 import 'package:flutter/material.dart';
 
 class BabySelectionPage extends StatefulWidget {
@@ -37,25 +38,88 @@ class _BabySelectionPageState extends State<BabySelectionPage> {
     }
   }
 
-  LinearGradient _buildAppBarGradient(ColorScheme colorScheme) {
-    final blendedColor =
-        Color.lerp(colorScheme.primary, colorScheme.secondary, 0.5) ??
-            colorScheme.primary;
-
-    return LinearGradient(
-      colors: [colorScheme.primary, blendedColor, colorScheme.secondary],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: _buildCustomAppBar(context, colorScheme),
+      appBar: BabyGradientAppBar(
+        showBackButton: false,
+        icon: Icons.baby_changing_station_rounded,
+        title: '¡Hola! Bienvenido',
+        subtitle: _babies.isEmpty
+            ? 'Registra tu primer bebé'
+            : '${_babies.length} ${_babies.length == 1 ? 'bebé registrado' : 'bebés registrados'}',
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.2)),
+            ),
+            child: PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded, color: Colors.white, size: 20),
+              tooltip: 'Más opciones',
+              color: Colors.white,
+              surfaceTintColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              offset: const Offset(0, 50),
+              onSelected: (value) async {
+                switch (value) {
+                  case 'babies':
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const BabyListPage()),
+                    );
+                    if (result == true) _loadBabies();
+                    break;
+                  case 'settings':
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SettingsPage()),
+                    );
+                    setState(() {});
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                if (_babies.isNotEmpty)
+                  PopupMenuItem<String>(
+                    value: 'babies',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.list_rounded,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        const Text('Ver todos los bebés'),
+                      ],
+                    ),
+                  ),
+                PopupMenuItem<String>(
+                  value: 'settings',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.settings_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      const Text('Configuración'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -117,130 +181,6 @@ class _BabySelectionPageState extends State<BabySelectionPage> {
     );
   }
 
-  /// AppBar personalizado siguiendo estándares UI/UX de AGENTS.md
-  PreferredSizeWidget _buildCustomAppBar(BuildContext context, ColorScheme colorScheme) {
-    return AppBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      centerTitle: false,
-      automaticallyImplyLeading: false,
-      flexibleSpace: Container(
-        decoration: BoxDecoration(
-          gradient: _buildAppBarGradient(colorScheme),
-        ),
-      ),
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withOpacity(0.3)),
-            ),
-            child: Icon(Icons.baby_changing_station_rounded, color: Colors.white, size: 22),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '¡Hola! Bienvenido',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                Text(
-                  _babies.isEmpty
-                      ? 'Registra tu primer bebé'
-                      : '${_babies.length} ${_babies.length == 1 ? 'bebé registrado' : 'bebés registrados'}',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        Container(
-          margin: const EdgeInsets.only(right: 8),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.2)),
-          ),
-          child: PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded, color: Colors.white, size: 20),
-            tooltip: 'Más opciones',
-            color: Colors.white,
-            surfaceTintColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            offset: const Offset(0, 50),
-            onSelected: (value) async {
-              switch (value) {
-                case 'babies':
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const BabyListPage()),
-                  );
-                  if (result == true) _loadBabies();
-                  break;
-                case 'settings':
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const SettingsPage()),
-                  );
-                  // Recargar para aplicar cambios de color si los hay
-                  setState(() {});
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              if (_babies.isNotEmpty)
-                PopupMenuItem<String>(
-                  value: 'babies',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.list_rounded,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      const Text('Ver todos los bebés'),
-                    ],
-                  ),
-                ),
-              PopupMenuItem<String>(
-                value: 'settings',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.settings_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    const Text('Configuración'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-      ],
-    );
-  }
 }
 
 class _EmptyStateCard extends StatelessWidget {

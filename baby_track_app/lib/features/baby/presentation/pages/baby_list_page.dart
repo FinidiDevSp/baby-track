@@ -4,6 +4,7 @@ import 'package:baby_track_app/features/baby/domain/models/baby.dart';
 import 'package:baby_track_app/features/baby/infrastructure/baby_repository_impl.dart';
 import 'package:baby_track_app/features/baby/presentation/pages/baby_menu_page.dart';
 import 'package:baby_track_app/features/baby/presentation/pages/baby_registration_page.dart';
+import 'package:baby_track_app/shared/widgets/app_bars/baby_gradient_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -100,18 +101,6 @@ class _BabyListPageState extends State<BabyListPage> {
     }
   }
 
-  LinearGradient _buildAppBarGradient(ColorScheme colorScheme) {
-    final blendedColor =
-        Color.lerp(colorScheme.primary, colorScheme.secondary, 0.5) ??
-            colorScheme.primary;
-
-    return LinearGradient(
-      colors: [colorScheme.primary, blendedColor, colorScheme.secondary],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    );
-  }
-
   Future<void> _openBabyMenu(Baby baby) async {
     await Navigator.push(
       context,
@@ -125,7 +114,11 @@ class _BabyListPageState extends State<BabyListPage> {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: _buildCustomAppBar(context, colorScheme),
+      appBar: BabyGradientAppBar(
+        title: 'Mis bebés',
+        subtitle: '${_babies.length} ${_babies.length == 1 ? 'bebé' : 'bebés'} registrados',
+        icon: Icons.family_restroom_rounded,
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -178,71 +171,6 @@ class _BabyListPageState extends State<BabyListPage> {
     );
   }
 
-  /// AppBar personalizado siguiendo estándares UI/UX de AGENTS.md
-  PreferredSizeWidget _buildCustomAppBar(BuildContext context, ColorScheme colorScheme) {
-    return AppBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      centerTitle: false,
-      leading: Container(
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.2)),
-        ),
-        child: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-          tooltip: 'Volver',
-        ),
-      ),
-      flexibleSpace: Container(
-        decoration: BoxDecoration(
-          gradient: _buildAppBarGradient(colorScheme),
-        ),
-      ),
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withOpacity(0.3)),
-            ),
-            child: Icon(Icons.family_restroom_rounded, color: Colors.white, size: 22),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Mis bebés',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                Text(
-                  '${_babies.length} ${_babies.length == 1 ? 'bebé' : 'bebés'} registrados',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _BabyGrid extends StatelessWidget {

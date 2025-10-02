@@ -1,6 +1,7 @@
 import 'package:baby_track_app/features/baby/domain/models/baby.dart';
 import 'package:baby_track_app/features/baby/domain/models/baby_daily_log.dart';
 import 'package:baby_track_app/features/baby/infrastructure/baby_daily_log_repository_impl.dart';
+import 'package:baby_track_app/shared/widgets/app_bars/baby_gradient_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -204,7 +205,12 @@ class _BabyDailyLogPageState extends State<BabyDailyLogPage> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(title: Text('Registro diario de ${widget.baby.name}')),
+      appBar: BabyGradientAppBar(
+        title: 'Registro diario',
+        subtitle: widget.baby.name,
+        icon: Icons.edit_note_rounded,
+        toolbarHeight: 72,
+      ),
       body: SafeArea(
         child: widget.baby.id == null
             ? Center(
