@@ -1,8 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:baby_track_app/features/baby/domain/growth/who_growth_standards.dart';
 import 'package:flutter/material.dart';
-
-import '../../domain/growth/who_growth_standards.dart';
 
 class WhoPercentileChart extends StatelessWidget {
   const WhoPercentileChart({
@@ -23,11 +22,7 @@ class WhoPercentileChart extends StatelessWidget {
     final data = WhoGrowthStandards.entriesFor(gender: gender, metric: metric);
     return LayoutBuilder(
       builder: (context, constraints) {
-        return _WhoChartPainterWidget(
-          data: data,
-          measurement: measurement,
-          ageMonths: ageMonths,
-        );
+        return _WhoChartPainterWidget(data: data, measurement: measurement, ageMonths: ageMonths);
       },
     );
   }
@@ -134,7 +129,11 @@ class _WhoChartPainter extends CustomPainter {
     // Draw axes.
     final baselineY = _paddingTop + chartHeight;
     canvas.drawLine(Offset(_paddingLeft, _paddingTop), Offset(_paddingLeft, baselineY), axisPaint);
-    canvas.drawLine(Offset(_paddingLeft, baselineY), Offset(_paddingLeft + chartWidth, baselineY), axisPaint);
+    canvas.drawLine(
+      Offset(_paddingLeft, baselineY),
+      Offset(_paddingLeft + chartWidth, baselineY),
+      axisPaint,
+    );
 
     // Horizontal grid lines
     final gridPaint = Paint()
@@ -184,9 +183,13 @@ class _WhoChartPainter extends CustomPainter {
 
       final pointPaint = Paint()..color = measurementColor;
       canvas.drawCircle(Offset(x, y), 5, pointPaint);
-      canvas.drawCircle(Offset(x, y), 8, Paint()
-        ..color = measurementColor.withOpacity(0.18)
-        ..style = PaintingStyle.fill);
+      canvas.drawCircle(
+        Offset(x, y),
+        8,
+        Paint()
+          ..color = measurementColor.withOpacity(0.18)
+          ..style = PaintingStyle.fill,
+      );
     }
   }
 

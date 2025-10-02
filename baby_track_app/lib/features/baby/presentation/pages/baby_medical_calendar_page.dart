@@ -1053,7 +1053,7 @@ class _EventFormSheetState extends State<_EventFormSheet> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _eventType,
+              initialValue: _eventType,
               decoration: const InputDecoration(labelText: 'Tipo de evento'),
               items: widget.eventLabels.entries
                   .map(
@@ -1111,7 +1111,7 @@ class _EventFormSheetState extends State<_EventFormSheet> {
             if (_reminderEnabled) ...[
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
-                value: _reminderMinutesBefore,
+                initialValue: _reminderMinutesBefore,
                 decoration: const InputDecoration(labelText: 'Anticipación del recordatorio'),
                 items: _reminderOptions
                     .map(

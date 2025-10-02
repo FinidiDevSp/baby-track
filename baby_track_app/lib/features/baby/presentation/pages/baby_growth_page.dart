@@ -206,9 +206,7 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
                     )
                   : const Icon(Icons.save_rounded),
               label: Text(_isSaving ? 'Guardando...' : 'Guardar medición'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(52),
-              ),
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
             ),
           ],
         ),
@@ -236,14 +234,14 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
                   style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
-                ...entry.value
-                    .map(
-                      (record) => _GrowthRecordCard(
-                        record: record,
-                        baby: widget.baby,
-                      ),
-                    )
-                    .toList(),
+                ...entry.value.map(
+                  (record) => _GrowthRecordCard(
+                    record: record,
+                    baby: widget.baby,
+                    onEdit: () => _editRecord(record),
+                    onDelete: () => _deleteRecord(record),
+                  ),
+                ),
               ],
             ),
           ),
@@ -268,14 +266,12 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
     }
   }
 
-  Future<void> _saveRecord() async {
+  Future<void> _saveRecord({BabyGrowthRecord? editingRecord}) async {
     if (widget.baby.id == null) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(
-            content: Text('Debes registrar al bebé antes de guardar mediciones.'),
-          ),
+          const SnackBar(content: Text('Debes registrar al bebé antes de guardar mediciones.')),
         );
       return;
     }
@@ -291,12 +287,13 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
     final weight = _parseMeasurement(_weightController.text);
 
     final record = BabyGrowthRecord(
+      id: editingRecord?.id,
       babyId: widget.baby.id!,
       recordedAt: _selectedDate,
       heightCm: height,
       headCircumferenceCm: head,
       weightKg: weight,
-      createdAt: DateTime.now(),
+      createdAt: editingRecord?.createdAt ?? DateTime.now(),
     );
 
     setState(() {
@@ -304,7 +301,11 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
     });
 
     try {
-      await _repository.createRecord(record);
+      if (editingRecord != null) {
+        await _repository.updateRecord(record);
+      } else {
+        await _repository.createRecord(record);
+      }
       if (!mounted) {
         return;
       }
@@ -313,13 +314,20 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
-            content: Text('Medición guardada para ${_formatSelectedDate(_selectedDate)}'),
+            content: Text(
+              editingRecord != null
+                  ? 'Medición actualizada exitosamente'
+                  : 'Medición guardada para ${_formatSelectedDate(_selectedDate)}',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
 
       _resetForm();
       await _loadRecords();
+      if (mounted) {
+        Navigator.pop(context);
+      }
     } catch (e) {
       if (!mounted) {
         return;
@@ -327,10 +335,7 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          SnackBar(
-            content: Text('Error al guardar la medición: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error al guardar la medición: $e'), backgroundColor: Colors.red),
         );
     } finally {
       if (mounted) {
@@ -362,6 +367,178 @@ class _BabyGrowthPageState extends State<BabyGrowthPage> {
     final formatted = formatter.format(date);
     return formatted[0].toUpperCase() + formatted.substring(1);
   }
+
+  Widget _buildGrowthForm({BabyGrowthRecord? editingRecord}) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.92,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) => Container(
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(24),
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colorScheme.onSurface.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Icon(Icons.monitor_weight_outlined, color: colorScheme.primary),
+                const SizedBox(width: 12),
+                Text(
+                  editingRecord != null ? 'Editar medición' : 'Registrar nueva medición',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Selecciona la fecha de control y captura los valores entregados por el pediatra.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface.withOpacity(0.7),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.tonalIcon(
+              onPressed: _isSaving ? null : _pickDate,
+              icon: const Icon(Icons.calendar_today_rounded),
+              label: Text(_formatSelectedDate(_selectedDate)),
+            ),
+            const SizedBox(height: 24),
+            Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  _MeasurementInputField(
+                    controller: _heightController,
+                    label: 'Estatura (cm)',
+                    helper: 'Ej. 68.4',
+                    icon: Icons.height_rounded,
+                  ),
+                  const SizedBox(height: 16),
+                  _MeasurementInputField(
+                    controller: _headCircumferenceController,
+                    label: 'Perímetro craneal (cm)',
+                    helper: 'Ej. 41.2',
+                    icon: Icons.circle_outlined,
+                  ),
+                  const SizedBox(height: 16),
+                  _MeasurementInputField(
+                    controller: _weightController,
+                    label: 'Peso (kg)',
+                    helper: 'Ej. 7.25',
+                    icon: Icons.scale_rounded,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: _isSaving ? null : () => _saveRecord(editingRecord: editingRecord),
+              icon: _isSaving
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(colorScheme.onPrimary),
+                      ),
+                    )
+                  : const Icon(Icons.save_rounded),
+              label: Text(_isSaving ? 'Guardando...' : 'Guardar medición'),
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _editRecord(BabyGrowthRecord record) async {
+    // Pre-fill the form with existing record data
+    _heightController.text = record.heightCm.toString();
+    _weightController.text = record.weightKg.toString();
+    _headCircumferenceController.text = record.headCircumferenceCm.toString();
+    _selectedDate = record.recordedAt;
+
+    // Show the form for editing
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildGrowthForm(editingRecord: record),
+    );
+
+    // Clean up form after closing modal
+    if (mounted) {
+      _resetForm();
+    }
+  }
+
+  Future<void> _deleteRecord(BabyGrowthRecord record) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar registro'),
+        content: Text(
+          '¿Estás seguro de que quieres eliminar el registro del ${_formatDate(record.recordedAt)}?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && record.id != null) {
+      try {
+        await _repository.deleteRecord(record.id!);
+        await _loadRecords();
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Registro eliminado exitosamente')));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error al eliminar registro: $e')));
+        }
+      }
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    final formatter = DateFormat('d MMM yyyy', 'es');
+    return formatter.format(date);
+  }
 }
 
 class _MeasurementInputField extends StatelessWidget {
@@ -386,9 +563,7 @@ class _MeasurementInputField extends StatelessWidget {
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       textInputAction: TextInputAction.next,
-      inputFormatters: [
-        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-      ],
+      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
       validator: (value) {
         final trimmed = value?.trim() ?? '';
         if (trimmed.isEmpty) {
@@ -410,19 +585,28 @@ class _MeasurementInputField extends StatelessWidget {
   }
 }
 
-class _GrowthRecordCard extends StatelessWidget {
-  const _GrowthRecordCard({required this.record, required this.baby});
+class _GrowthRecordCard extends StatefulWidget {
+  const _GrowthRecordCard({
+    required this.record,
+    required this.baby,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   final BabyGrowthRecord record;
   final Baby baby;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  State<_GrowthRecordCard> createState() => _GrowthRecordCardState();
+}
+
+class _GrowthRecordCardState extends State<_GrowthRecordCard> {
+  bool _isExpanded = false;
 
   BabyGender get _babyGender =>
-      baby.gender.toUpperCase() == 'F' ? BabyGender.female : BabyGender.male;
-
-  String _formatDate(DateTime date) {
-    final formatter = DateFormat('d MMM yyyy', 'es');
-    return formatter.format(date);
-  }
+      widget.baby.gender.toUpperCase() == 'F' ? BabyGender.female : BabyGender.male;
 
   String _formatMeasurement(double? value, String unit) {
     if (value == null) {
@@ -432,8 +616,8 @@ class _GrowthRecordCard extends StatelessWidget {
   }
 
   String _formatAgeDetail() {
-    final birth = baby.birthDate;
-    final measurementDate = record.recordedAt;
+    final birth = widget.baby.birthDate;
+    final measurementDate = widget.record.recordedAt;
     if (measurementDate.isBefore(birth)) {
       return 'Edad no disponible';
     }
@@ -467,7 +651,7 @@ class _GrowthRecordCard extends StatelessWidget {
   }
 
   double _ageInMonths() {
-    final difference = record.recordedAt.difference(baby.birthDate);
+    final difference = widget.record.recordedAt.difference(widget.baby.birthDate);
     if (difference.isNegative) {
       return 0;
     }
@@ -491,110 +675,161 @@ class _GrowthRecordCard extends StatelessWidget {
     final ageDetail = _formatAgeDetail();
     final ageMonths = _ageInMonths();
 
-    final headPercentile =
-        _percentileFor(record.headCircumferenceCm, GrowthMetric.headCircumference);
-    final heightPercentile = _percentileFor(record.heightCm, GrowthMetric.height);
-    final weightPercentile = _percentileFor(record.weightKg, GrowthMetric.weight);
+    final headPercentile = _percentileFor(
+      widget.record.headCircumferenceCm,
+      GrowthMetric.headCircumference,
+    );
+    final heightPercentile = _percentileFor(widget.record.heightCm, GrowthMetric.height);
+    final weightPercentile = _percentileFor(widget.record.weightKg, GrowthMetric.weight);
 
-    return DefaultTabController(
-      length: 3,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 20,
-              offset: const Offset(0, 14),
-            ),
-          ],
-          border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.6)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.calendar_today_rounded, color: colorScheme.primary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '${_formatDate(record.recordedAt)} · $ageDetail',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 14),
+          ),
+        ],
+        border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.6)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isExpanded = !_isExpanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(24),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Icon(Icons.calendar_today_rounded, color: colorScheme.primary, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '${_formatDate(widget.record.recordedAt)} · $ageDetail',
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            TabBar(
-              labelColor: colorScheme.primary,
-              labelPadding: const EdgeInsets.symmetric(horizontal: 12),
-              unselectedLabelColor: colorScheme.onSurface.withOpacity(0.6),
-              indicatorColor: colorScheme.primary,
-              indicatorWeight: 2.5,
-              isScrollable: true,
-              labelStyle: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-              tabs: const [
-                Tab(text: 'Perímetro craneal'),
-                Tab(text: 'Altura'),
-                Tab(text: 'Peso'),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 320,
-              child: TabBarView(
-                physics: const BouncingScrollPhysics(),
-                children: [
-                  _GrowthMetricTab(
-                    metric: GrowthMetric.headCircumference,
-                    title: 'Perímetro craneal',
-                    unit: 'cm',
-                    icon: Icons.circle_outlined,
-                    measurement: record.headCircumferenceCm,
-                    measurementLabel:
-                        _formatMeasurement(record.headCircumferenceCm, 'cm'),
-                    percentile: headPercentile,
-                    gender: _babyGender,
-                    ageMonths: ageMonths,
-                    color: colorScheme.primary,
-                  ),
-                  _GrowthMetricTab(
-                    metric: GrowthMetric.height,
-                    title: 'Altura',
-                    unit: 'cm',
-                    icon: Icons.height_rounded,
-                    measurement: record.heightCm,
-                    measurementLabel: _formatMeasurement(record.heightCm, 'cm'),
-                    percentile: heightPercentile,
-                    gender: _babyGender,
-                    ageMonths: ageMonths,
-                    color: colorScheme.secondary,
-                  ),
-                  _GrowthMetricTab(
-                    metric: GrowthMetric.weight,
-                    title: 'Peso',
-                    unit: 'kg',
-                    icon: Icons.scale_rounded,
-                    measurement: record.weightKg,
-                    measurementLabel: _formatMeasurement(record.weightKg, 'kg'),
-                    percentile: weightPercentile,
-                    gender: _babyGender,
-                    ageMonths: ageMonths,
-                    color: colorScheme.tertiary,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        onPressed: widget.onEdit,
+                        icon: Icon(Icons.edit_outlined, size: 20),
+                        tooltip: 'Editar',
+                        color: colorScheme.primary,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      IconButton(
+                        onPressed: widget.onDelete,
+                        icon: Icon(Icons.delete_outline, size: 20),
+                        tooltip: 'Eliminar',
+                        color: colorScheme.error,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      Icon(
+                        _isExpanded ? Icons.expand_less : Icons.expand_more,
+                        color: colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
+          ),
+          if (_isExpanded) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: DefaultTabController(
+                length: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Divider(height: 1),
+                    const SizedBox(height: 20),
+                    TabBar(
+                      labelColor: colorScheme.primary,
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+                      unselectedLabelColor: colorScheme.onSurface.withOpacity(0.6),
+                      indicatorColor: colorScheme.primary,
+                      indicatorWeight: 2.5,
+                      isScrollable: true,
+                      labelStyle: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                      tabs: const [
+                        Tab(text: 'Perímetro craneal'),
+                        Tab(text: 'Altura'),
+                        Tab(text: 'Peso'),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 320,
+                      child: TabBarView(
+                        physics: const BouncingScrollPhysics(),
+                        children: [
+                          _GrowthMetricTab(
+                            metric: GrowthMetric.headCircumference,
+                            title: 'Perímetro craneal',
+                            unit: 'cm',
+                            icon: Icons.circle_outlined,
+                            measurement: widget.record.headCircumferenceCm,
+                            measurementLabel: _formatMeasurement(
+                              widget.record.headCircumferenceCm,
+                              'cm',
+                            ),
+                            percentile: headPercentile,
+                            gender: _babyGender,
+                            ageMonths: ageMonths,
+                            color: colorScheme.primary,
+                          ),
+                          _GrowthMetricTab(
+                            metric: GrowthMetric.height,
+                            title: 'Altura',
+                            unit: 'cm',
+                            icon: Icons.height_rounded,
+                            measurement: widget.record.heightCm,
+                            measurementLabel: _formatMeasurement(widget.record.heightCm, 'cm'),
+                            percentile: heightPercentile,
+                            gender: _babyGender,
+                            ageMonths: ageMonths,
+                            color: colorScheme.secondary,
+                          ),
+                          _GrowthMetricTab(
+                            metric: GrowthMetric.weight,
+                            title: 'Peso',
+                            unit: 'kg',
+                            icon: Icons.scale_rounded,
+                            measurement: widget.record.weightKg,
+                            measurementLabel: _formatMeasurement(widget.record.weightKg, 'kg'),
+                            percentile: weightPercentile,
+                            gender: _babyGender,
+                            ageMonths: ageMonths,
+                            color: colorScheme.tertiary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
-        ),
+        ],
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final formatter = DateFormat('d MMM yyyy', 'es');
+    return formatter.format(date);
   }
 }
 
@@ -639,23 +874,15 @@ class _GrowthMetricTab extends StatelessWidget {
           children: [
             Icon(icon, color: color),
             const SizedBox(width: 8),
-            Text(
-              title,
-              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-            ),
+            Text(title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
           ],
         ),
         const SizedBox(height: 8),
-        Text(
-          'Medición: $measurementLabel',
-          style: theme.textTheme.bodyMedium,
-        ),
+        Text('Medición: $measurementLabel', style: theme.textTheme.bodyMedium),
         const SizedBox(height: 4),
         Text(
           percentileLabel,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: colorScheme.onSurface.withOpacity(0.7),
-          ),
+          style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withOpacity(0.7)),
         ),
         const SizedBox(height: 16),
         Expanded(
@@ -663,7 +890,7 @@ class _GrowthMetricTab extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             child: Container(
               decoration: BoxDecoration(
-                color: colorScheme.surfaceVariant.withOpacity(0.25),
+                color: colorScheme.surfaceContainerHighest.withOpacity(0.25),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -680,9 +907,7 @@ class _GrowthMetricTab extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           'Fuente: Estándares de crecimiento OMS 2006.',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: colorScheme.onSurface.withOpacity(0.6),
-          ),
+          style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withOpacity(0.6)),
         ),
       ],
     );
@@ -690,11 +915,7 @@ class _GrowthMetricTab extends StatelessWidget {
 }
 
 class _EmptyStateCard extends StatelessWidget {
-  const _EmptyStateCard({
-    required this.icon,
-    required this.title,
-    required this.message,
-  });
+  const _EmptyStateCard({required this.icon, required this.title, required this.message});
 
   final IconData icon;
   final String title;
